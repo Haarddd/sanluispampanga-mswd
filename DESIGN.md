@@ -1,3 +1,237 @@
+---
+version: alpha
+name: Vercel Analysis
+description: An analysis of Vercel's design language — the Geist system, a stark black-on-near-white developer-platform aesthetic where a single ink tone carries every heading, CTA, and border, and the only color the page allows itself is a multi-stop mesh gradient (cyan / blue / violet / magenta / amber) confined to the hero. Geist Sans drives tightly-tracked display type, Geist Mono labels the technical eyebrows, and pill-shaped black buttons mark the marketing CTAs while 6px square buttons handle app and nav chrome.
+
+colors:
+  primary: "#171717"
+  on-primary: "#ffffff"
+  ink: "#171717"
+  body: "#4d4d4d"
+  mute: "#8f8f8f"
+  faint: "#a1a1a1"
+  hairline: "#ebebeb"
+  hairline-soft: "#f2f2f2"
+  canvas: "#fafafa"
+  canvas-elevated: "#ffffff"
+  link: "#0070f3"
+  link-deep: "#0761d1"
+  link-soft: "#d3e5ff"
+  error: "#ee0000"
+  error-deep: "#c50000"
+  warning: "#f5a623"
+  warning-soft: "#ffefcf"
+  warning-deep: "#ab570a"
+  violet: "#7928ca"
+  violet-soft: "#d8ccf1"
+  cyan: "#50e3c2"
+  cyan-soft: "#aaffec"
+  pink: "#ff0080"
+  magenta: "#eb367f"
+  gradient-develop-start: "#007cf0"
+  gradient-develop-end: "#00dfd8"
+  gradient-preview-start: "#7928ca"
+  gradient-preview-end: "#ff0080"
+  gradient-ship-start: "#ff4d4d"
+  gradient-ship-end: "#f9cb28"
+
+typography:
+  display-xl:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 48px
+    fontWeight: 600
+    lineHeight: 48px
+    letterSpacing: -2.4px
+  heading-lg:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 32px
+    fontWeight: 600
+    lineHeight: 40px
+    letterSpacing: -1.28px
+  heading-md:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 20px
+    fontWeight: 600
+    lineHeight: 28px
+    letterSpacing: -0.4px
+  label-sm:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 20px
+    letterSpacing: -0.28px
+  mono-eyebrow:
+    fontFamily: Geist Mono, ui-monospace, SFMono-Regular, Menlo, monospace
+    fontSize: 12px
+    fontWeight: 500
+    lineHeight: 16px
+    letterSpacing: 0
+  body-lg:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 24px
+    letterSpacing: 0
+  body-md:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 20px
+    letterSpacing: 0
+  body-sm:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 12px
+    fontWeight: 400
+    lineHeight: 16px
+    letterSpacing: 0
+  button-lg:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 16px
+    fontWeight: 500
+    lineHeight: 20px
+    letterSpacing: 0
+  button-md:
+    fontFamily: Geist, Arial, sans-serif
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 20px
+    letterSpacing: 0
+  code:
+    fontFamily: Geist Mono, ui-monospace, SFMono-Regular, Menlo, monospace
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 20px
+    letterSpacing: 0
+
+rounded:
+  none: 0px
+  sm: 6px
+  md: 12px
+  lg: 16px
+  pill-category: 64px
+  pill: 100px
+  full: 9999px
+
+spacing:
+  xxs: 4px
+  xs: 8px
+  sm: 12px
+  md: 16px
+  lg: 24px
+  xl: 32px
+  2xl: 40px
+  3xl: 64px
+  4xl: 96px
+  section: 128px
+
+components:
+  nav-bar:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.body}"
+    typography: "{typography.body-md}"
+    borderColor: "{colors.hairline}"
+    padding: "{spacing.sm} {spacing.lg}"
+  nav-link:
+    textColor: "{colors.body}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.full}"
+    padding: "{spacing.xs} {spacing.sm}"
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-lg}"
+    rounded: "{rounded.pill}"
+    padding: "0px 14px"
+  button-secondary:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-lg}"
+    rounded: "{rounded.pill}"
+    padding: "0px 14px"
+  button-primary-sm:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.sm}"
+    padding: "0px 6px"
+  button-ghost-sm:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.sm}"
+    padding: "0px 6px"
+  button-category-pill:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    typography: "{typography.button-md}"
+    rounded: "{rounded.pill-category}"
+    padding: "0px 16px"
+  button-icon-circular:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.body-lg}"
+    rounded: "{rounded.full}"
+    padding: "0px"
+  text-input:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.sm}"
+    padding: "{spacing.xs} {spacing.sm}"
+  feature-card:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.lg}"
+  feature-card-elevated:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.lg}"
+  pricing-card:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.lg}"
+    padding: "{spacing.xl}"
+  code-block:
+    backgroundColor: "{colors.canvas-elevated}"
+    textColor: "{colors.ink}"
+    borderColor: "{colors.hairline}"
+    typography: "{typography.code}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+  logo-strip:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.mute}"
+    typography: "{typography.body-md}"
+    padding: "{spacing.xl} {spacing.lg}"
+  hero-band:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.display-xl}"
+    padding: "{spacing.section} {spacing.lg}"
+  cta-band:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.ink}"
+    typography: "{typography.display-xl}"
+    padding: "{spacing.4xl} {spacing.lg}"
+  footer:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.body}"
+    typography: "{typography.body-md}"
+    borderColor: "{colors.hairline}"
+    padding: "{spacing.3xl} {spacing.lg}"
+---
+
 ## Overview
 
 Vercel's Geist system is an exercise in subtraction. The page is a near-white sheet (`{colors.canvas}` — #fafafa) carrying near-black ink (`{colors.ink}` — #171717), and almost nothing else competes. Headings, body copy, primary buttons, and the thin 1px borders that define every card all draw from the same ink-and-grey ladder. The one place color is allowed to exist is the hero, where a soft multi-stop **mesh gradient** — cyan, blue, violet, magenta, amber — blooms behind or beside the headline as the brand's entire decorative system. Everywhere else, restraint.
