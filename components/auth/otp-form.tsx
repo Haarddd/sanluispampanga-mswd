@@ -119,7 +119,6 @@ export function OTPForm() {
       setError(res.error);
       setLoading(false);
     } else if (res?.success && res?.redirect) {
-      setLoading(false);
       router.push(res.redirect);
     }
   };
@@ -144,7 +143,6 @@ export function OTPForm() {
       );
       setLoading(false);
     } else if (res?.success && res?.redirect) {
-      setLoading(false);
       router.push(res.redirect);
     }
   };

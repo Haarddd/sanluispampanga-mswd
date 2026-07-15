@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Pill, Bell, Inbox, CreditCard, LifeBuoy, Phone } from "lucide-react";
+import {
+  Pill,
+  Bell,
+  Inbox,
+  CreditCard,
+  LifeBuoy,
+  Phone,
+  PhilippinePeso,
+} from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SectionHeader } from "@/components/user/section-header";
@@ -220,7 +228,7 @@ export default function HomePage() {
             className="rounded-xl border border-border bg-card p-4 hover:bg-accent/40 transition-colors flex flex-col gap-2.5 active:scale-[0.98]"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-              <Inbox className="h-5 w-5" />
+              <PhilippinePeso className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground leading-tight">

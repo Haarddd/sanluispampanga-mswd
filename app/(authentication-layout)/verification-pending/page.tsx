@@ -1,21 +1,44 @@
 "use client";
- 
+
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, LogOut, RefreshCw, Loader2, Upload, MapPin, AlertCircle } from "lucide-react";
+import {
+  Clock,
+  LogOut,
+  RefreshCw,
+  Loader2,
+  Upload,
+  MapPin,
+  AlertCircle,
+} from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { fetchUserProfile } from "@/app/actions/profile";
 import { useLanguage } from "@/context/LanguageContext";
 import { toast } from "sonner";
 
 const SAN_LUIS_BARANGAYS = [
-  "Baculas", "Cabagsan", "Cabensaan", "Calantipay", "San Agustin",
-  "San Carlos", "San Isidro", "San Jose", "San Juan", "San Nicolas",
-  "San Roque", "San Sebastian", "Santa Cruz", "Santa Cruz Pambilog",
-  "Santa Lucia", "Santa Monica", "Santa Rita", "Santo Rosario",
-  "Santo Tomas", "Talang"
+  "Baculas",
+  "Cabagsan",
+  "Cabensaan",
+  "Calantipay",
+  "San Agustin",
+  "San Carlos",
+  "San Isidro",
+  "San Jose",
+  "San Juan",
+  "San Nicolas",
+  "San Roque",
+  "San Sebastian",
+  "Santa Cruz",
+  "Santa Cruz Pambilog",
+  "Santa Lucia",
+  "Santa Monica",
+  "Santa Rita",
+  "Santo Rosario",
+  "Santo Tomas",
+  "Talang",
 ];
 
 export default function VerificationPendingPage() {
@@ -24,11 +47,11 @@ export default function VerificationPendingPage() {
   const [checking, setChecking] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [status, setStatus] = useState<string>("PENDING_ADMIN_REVIEW");
-  
+
   // Resubmission state
   const [resubmitFields, setResubmitFields] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string>("");
-  
+
   // Resubmission Form Inputs
   const [fullName, setFullName] = useState("");
   const [street, setStreet] = useState("");
@@ -41,7 +64,7 @@ export default function VerificationPendingPage() {
   const [idBackPreview, setIdBackPreview] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [locating, setLocating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,20 +95,32 @@ export default function VerificationPendingPage() {
       if (data?.profile?.verification_status === "APPROVED") {
         router.replace("/");
       } else if (data?.profile) {
-        setStatus(data.profile.verification_status);
+        const newStatus = data.profile.verification_status;
+        setStatus(newStatus);
         setResubmitFields(data.profile.resubmit_fields || []);
-        toast.info(
-          language === "tl"
-            ? "Na-update ang katayuan ng iyong account."
-            : "Your account status has been updated.",
-        );
+
+        // Show current status instead of "updated"
+        const statusLabel =
+          newStatus === "PENDING_ADMIN_REVIEW"
+            ? language === "tl"
+              ? "Naghihintay ng pagsusuri"
+              : "Pending review"
+            : newStatus === "NEEDS_RESUBMISSION"
+              ? language === "tl"
+                ? "Kailangan ng pagbabago"
+                : "Needs resubmission"
+              : language === "tl"
+                ? "Tinatanggihan"
+                : "Rejected";
+
+        toast.info(statusLabel);
+        setChecking(false);
       }
       if (data?.idDocument) {
         setRejectionReason(data.idDocument.rejection_reason || "");
       }
     } catch (err) {
       console.error(err);
-    } finally {
       setChecking(false);
     }
   };
@@ -116,24 +151,27 @@ export default function VerificationPendingPage() {
         toast.success(
           language === "tl"
             ? "Nakuha na ang GPS coordinates!"
-            : "GPS coordinates pinned successfully!"
+            : "GPS coordinates pinned successfully!",
         );
       },
       (err) => {
         setFormError(
           language === "tl"
             ? "Hindi makuha ang lokasyon. Pakisiguro na naka-on ang GPS."
-            : "Could not retrieve GPS coordinates. Please ensure GPS is enabled."
+            : "Could not retrieve GPS coordinates. Please ensure GPS is enabled.",
         );
         setLocating(false);
-      }
+      },
     );
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "front" | "back") => {
+  const handleFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "front" | "back",
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const previewUrl = URL.createObjectURL(file);
     if (type === "front") {
       setIdFrontFile(file);
@@ -151,42 +189,68 @@ export default function VerificationPendingPage() {
 
     // Dynamic Validations
     if (resubmitFields.includes("fullName") && !fullName.trim()) {
-      setFormError(language === "tl" ? "Kailangan ang Buong Pangalan." : "Full Name is required.");
+      setFormError(
+        language === "tl"
+          ? "Kailangan ang Buong Pangalan."
+          : "Full Name is required.",
+      );
       setSubmitting(false);
       return;
     }
     if (resubmitFields.includes("barangay") && !barangay) {
-      setFormError(language === "tl" ? "Pumili ng Barangay." : "Barangay selection is required.");
+      setFormError(
+        language === "tl"
+          ? "Pumili ng Barangay."
+          : "Barangay selection is required.",
+      );
       setSubmitting(false);
       return;
     }
     if (resubmitFields.includes("location") && !latitude) {
-      setFormError(language === "tl" ? "Kailangan i-pin ang GPS location." : "GPS Location Pin is required.");
+      setFormError(
+        language === "tl"
+          ? "Kailangan i-pin ang GPS location."
+          : "GPS Location Pin is required.",
+      );
       setSubmitting(false);
       return;
     }
     if (resubmitFields.includes("idFrontFile") && !idFrontFile) {
-      setFormError(language === "tl" ? "I-upload ang harap ng ID." : "Government ID Front image is required.");
+      setFormError(
+        language === "tl"
+          ? "I-upload ang harap ng ID."
+          : "Government ID Front image is required.",
+      );
       setSubmitting(false);
       return;
     }
     if (resubmitFields.includes("pin")) {
       if (pin.length !== 6) {
-        setFormError(language === "tl" ? "Dapat 6-digit ang PIN." : "PIN must be exactly 6 digits.");
+        setFormError(
+          language === "tl"
+            ? "Dapat 6-digit ang PIN."
+            : "PIN must be exactly 6 digits.",
+        );
         setSubmitting(false);
         return;
       }
       if (pin !== pinConfirm) {
-        setFormError(language === "tl" ? "Hindi nagtutugma ang PIN." : "PINs do not match.");
+        setFormError(
+          language === "tl"
+            ? "Hindi nagtutugma ang PIN."
+            : "PINs do not match.",
+        );
         setSubmitting(false);
         return;
       }
     }
 
     const formData = new FormData();
-    if (resubmitFields.includes("fullName")) formData.append("fullName", fullName);
+    if (resubmitFields.includes("fullName"))
+      formData.append("fullName", fullName);
     if (resubmitFields.includes("street")) formData.append("street", street);
-    if (resubmitFields.includes("barangay")) formData.append("barangay", barangay);
+    if (resubmitFields.includes("barangay"))
+      formData.append("barangay", barangay);
     if (resubmitFields.includes("location") && latitude && longitude) {
       formData.append("latitude", latitude.toString());
       formData.append("longitude", longitude.toString());
@@ -208,7 +272,7 @@ export default function VerificationPendingPage() {
         toast.success(
           language === "tl"
             ? "Matagumpay na naipadala ang mga sagot!"
-            : "Updates resubmitted successfully!"
+            : "Updates resubmitted successfully!",
         );
         setStatus("PENDING_ADMIN_REVIEW");
       }
@@ -227,7 +291,9 @@ export default function VerificationPendingPage() {
             <AlertCircle className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-foreground mt-2">
-            {language === "tl" ? "Kailangan ng Pag-aayos" : "Action Required: Update Details"}
+            {language === "tl"
+              ? "Kailangan ng Pag-aayos"
+              : "Action Required: Update Details"}
           </h1>
           <p className="text-xs text-muted-foreground">
             {language === "tl"
@@ -239,9 +305,13 @@ export default function VerificationPendingPage() {
         {rejectionReason && (
           <div className="border border-orange-200 bg-orange-50/20 dark:border-orange-900/30 dark:bg-orange-950/10 p-3 rounded-lg text-left">
             <p className="text-[10px] font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">
-              {language === "tl" ? "PAUNAWA MULA SA ADMIN" : "MESSAGE FROM SOCIAL WORKER"}
+              {language === "tl"
+                ? "PAUNAWA MULA SA ADMIN"
+                : "MESSAGE FROM SOCIAL WORKER"}
             </p>
-            <p className="text-xs mt-1 text-foreground italic">"{rejectionReason}"</p>
+            <p className="text-xs mt-1 text-foreground italic">
+              {rejectionReason}
+            </p>
           </div>
         )}
 
@@ -272,7 +342,9 @@ export default function VerificationPendingPage() {
           {resubmitFields.includes("street") && (
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
-                {language === "tl" ? "Kalye / Street Address" : "Street Address"}
+                {language === "tl"
+                  ? "Kalye / Street Address"
+                  : "Street Address"}
               </label>
               <Input
                 type="text"
@@ -296,9 +368,13 @@ export default function VerificationPendingPage() {
                 className="w-full h-10 border border-input bg-background px-3 py-2 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
                 required
               >
-                <option value="">{language === "tl" ? "-- Pumili --" : "-- Select Barangay --"}</option>
+                <option value="">
+                  {language === "tl" ? "-- Pumili --" : "-- Select Barangay --"}
+                </option>
                 {SAN_LUIS_BARANGAYS.map((b) => (
-                  <option key={b} value={b}>{b}</option>
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
                 ))}
               </select>
             </div>
@@ -323,10 +399,15 @@ export default function VerificationPendingPage() {
                 )}
                 {latitude ? (
                   <span className="text-emerald-600 font-medium">
-                    {language === "tl" ? "Naka-pin na: " : "Pinned: "} {latitude.toFixed(4)}, {longitude?.toFixed(4)}
+                    {language === "tl" ? "Naka-pin na: " : "Pinned: "}{" "}
+                    {latitude.toFixed(4)}, {longitude?.toFixed(4)}
                   </span>
                 ) : (
-                  <span>{language === "tl" ? "I-pin ang Kasalukuyang Lokasyon" : "Pin Current Location"}</span>
+                  <span>
+                    {language === "tl"
+                      ? "I-pin ang Kasalukuyang Lokasyon"
+                      : "Pin Current Location"}
+                  </span>
                 )}
               </Button>
             </div>
@@ -335,9 +416,11 @@ export default function VerificationPendingPage() {
           {resubmitFields.includes("idFrontFile") && (
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground block">
-                {language === "tl" ? "Harap ng Government ID" : "Government ID Front Image"}
+                {language === "tl"
+                  ? "Harap ng Government ID"
+                  : "Government ID Front Image"}
               </label>
-              <div 
+              <div
                 onClick={() => frontInputRef.current?.click()}
                 className="border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/40 transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px]"
               >
@@ -349,12 +432,18 @@ export default function VerificationPendingPage() {
                   className="hidden"
                 />
                 {idFrontPreview ? (
-                  <img src={idFrontPreview} alt="ID Front Preview" className="h-16 object-contain rounded-md" />
+                  <img
+                    src={idFrontPreview}
+                    alt="ID Front Preview"
+                    className="h-16 object-contain rounded-md"
+                  />
                 ) : (
                   <>
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
-                      {language === "tl" ? "Pindutin para mag-upload" : "Click to upload image"}
+                      {language === "tl"
+                        ? "Pindutin para mag-upload"
+                        : "Click to upload image"}
                     </span>
                   </>
                 )}
@@ -365,9 +454,11 @@ export default function VerificationPendingPage() {
           {resubmitFields.includes("idBackFile") && (
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground block">
-                {language === "tl" ? "Likod ng Government ID" : "Government ID Back Image"}
+                {language === "tl"
+                  ? "Likod ng Government ID"
+                  : "Government ID Back Image"}
               </label>
-              <div 
+              <div
                 onClick={() => backInputRef.current?.click()}
                 className="border border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/40 transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px]"
               >
@@ -379,12 +470,18 @@ export default function VerificationPendingPage() {
                   className="hidden"
                 />
                 {idBackPreview ? (
-                  <img src={idBackPreview} alt="ID Back Preview" className="h-16 object-contain rounded-md" />
+                  <img
+                    src={idBackPreview}
+                    alt="ID Back Preview"
+                    className="h-16 object-contain rounded-md"
+                  />
                 ) : (
                   <>
                     <Upload className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
-                      {language === "tl" ? "Pindutin para mag-upload" : "Click to upload image"}
+                      {language === "tl"
+                        ? "Pindutin para mag-upload"
+                        : "Click to upload image"}
                     </span>
                   </>
                 )}
@@ -395,11 +492,15 @@ export default function VerificationPendingPage() {
           {resubmitFields.includes("pin") && (
             <div className="space-y-3 pt-2 border-t">
               <h3 className="text-xs font-bold text-foreground">
-                {language === "tl" ? "Baguhin ang 6-Digit PIN" : "Update 6-Digit login PIN"}
+                {language === "tl"
+                  ? "Baguhin ang 6-Digit PIN"
+                  : "Update 6-Digit login PIN"}
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">PIN</label>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">
+                    PIN
+                  </label>
                   <Input
                     type="password"
                     maxLength={6}
@@ -411,13 +512,17 @@ export default function VerificationPendingPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">Kumpirmahin PIN</label>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground block">
+                    Kumpirmahin PIN
+                  </label>
                   <Input
                     type="password"
                     maxLength={6}
                     placeholder="123456"
                     value={pinConfirm}
-                    onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) =>
+                      setPinConfirm(e.target.value.replace(/\D/g, ""))
+                    }
                     className="h-10 text-sm tracking-widest text-center"
                     required
                   />
@@ -434,8 +539,10 @@ export default function VerificationPendingPage() {
             >
               {submitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
+              ) : language === "tl" ? (
+                "Ipadala ang mga Pagbabago"
               ) : (
-                language === "tl" ? "Ipadala ang mga Pagbabago" : "Submit Updated Details"
+                "Submit Updated Details"
               )}
             </Button>
 
@@ -462,20 +569,11 @@ export default function VerificationPendingPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 justify-center px-6 py-12 gap-8 text-center max-w-sm mx-auto">
+    <div className="flex flex-col flex-1 justify-center px-6 py-12 gap-6 text-center max-w-sm mx-auto">
       {/* Icon and status badge */}
       <div className="flex flex-col items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400/10 text-amber-600 dark:text-amber-400">
           <Clock className="h-8 w-8 animate-pulse" />
-        </div>
-        <div className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-          {status === "REJECTED"
-            ? language === "tl"
-              ? "TINANGGIHAN"
-              : "REJECTED"
-            : language === "tl"
-              ? "KASALUKUYANG SINUSURI"
-              : "UNDER REVIEW"}
         </div>
       </div>
 
