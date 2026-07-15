@@ -3,11 +3,12 @@
 
 -- 1. digital_ids public read policy
 drop policy if exists "Allow public read for active digital ids" on public.digital_ids;
-create policy "Allow public read for active digital ids"
+drop policy if exists "Allow public read for all digital ids" on public.digital_ids;
+create policy "Allow public read for all digital ids"
 on public.digital_ids
 for select
 to anon, authenticated
-using (status = 'ACTIVE');
+using (true);
 
 -- 2. user_profiles public read policy
 drop policy if exists "Allow public read for approved profiles" on public.user_profiles;
