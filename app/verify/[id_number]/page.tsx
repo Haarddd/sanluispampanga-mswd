@@ -7,6 +7,7 @@ interface PageProps {
 
 export default async function VerifyCitizenPage({ params }: PageProps) {
   const { id_number } = await params;
+  const cleanIdNumber = id_number.replace(/[^0-9]/g, "");
   const supabase = await createClient();
 
   // Query the digital_ids table to check if there is an active record
@@ -27,7 +28,7 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
         )
       )
     `)
-    .eq("id_number", id_number)
+    .eq("id_number", cleanIdNumber)
     .single();
 
   if (error || !digitalId) {
