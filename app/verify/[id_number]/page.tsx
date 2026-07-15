@@ -17,13 +17,21 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
       user_profile:user_profiles (
         full_name,
         verification_status,
-        address
+        user_addresses (
+          street,
+          barangay,
+          municipality,
+          province,
+          region,
+          zip_code
+        )
       )
     `)
     .eq("id_number", id_number)
     .single();
 
   if (error || !digitalId) {
+    console.error("Verification error or ID not found:", error);
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans text-zinc-900">
         <div className="bg-white border border-red-200 rounded-2xl p-8 max-w-md w-full text-center shadow-lg">
@@ -47,7 +55,10 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
 
   // Check if status is active and user profile is approved
   const isVerified = digitalId.status === "ACTIVE" && (digitalId.user_profile as any)?.verification_status === "APPROVED";
-  const user = digitalId.user_profile as any;
+  const user = {
+    ...(digitalId.user_profile as any),
+    address: (digitalId.user_profile as any)?.user_addresses?.[0] || null
+  };
 
   // Format address nicely
   let addressStr = "San Luis, Pampanga";
