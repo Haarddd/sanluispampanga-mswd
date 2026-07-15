@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { XCircle, ShieldCheck, MapPin, Calendar, Heart } from "lucide-react";
+import { XCircle, ShieldCheck, MapPin, Calendar, Heart, Clock, AlertTriangle } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ id_number: string }>;
@@ -67,25 +67,44 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
     addressStr = `${addr.street ? addr.street + ", " : ""}Brgy. ${addr.barangay || ""}, San Luis, Pampanga`;
   }
 
+  // Determine status configuration
+  let statusBg = "bg-red-600";
+  let StatusIcon = XCircle;
+  let statusTitle = "Inactive ID Card";
+  let statusDesc = "Official MSWD Digital Credential Verification";
+
+  if (digitalId.status === "ACTIVE" && isVerified) {
+    statusBg = "bg-emerald-600";
+    StatusIcon = ShieldCheck;
+    statusTitle = "Verified Active Citizen";
+    statusDesc = "Official MSWD Digital Credential Verification";
+  } else if (digitalId.status === "EXPIRED") {
+    statusBg = "bg-amber-500";
+    StatusIcon = Clock;
+    statusTitle = "Expired ID Card";
+    statusDesc = "This digital ID has reached its expiration date.";
+  } else if (digitalId.status === "SUSPENDED") {
+    statusBg = "bg-red-600";
+    StatusIcon = AlertTriangle;
+    statusTitle = "Suspended ID Card";
+    statusDesc = "This digital ID has been suspended by MSWD.";
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans text-zinc-900">
       {/* Verification Card */}
       <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden max-w-md w-full shadow-xl">
         
         {/* Verification Status Header */}
-        <div className={`p-6 text-center text-white ${isVerified ? "bg-emerald-600" : "bg-red-600"}`}>
+        <div className={`p-6 text-center text-white ${statusBg}`}>
           <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-3">
-            {isVerified ? (
-              <ShieldCheck className="h-10 w-10 text-white" />
-            ) : (
-              <XCircle className="h-10 w-10 text-white" />
-            )}
+            <StatusIcon className="h-10 w-10 text-white" />
           </div>
           <h1 className="text-xl font-black tracking-wide uppercase">
-            {isVerified ? "Verified Active Citizen" : "Inactive or Revoked ID"}
+            {statusTitle}
           </h1>
           <p className="text-xs text-white/80 mt-1">
-            Official MSWD Digital Credential Verification
+            {statusDesc}
           </p>
         </div>
 

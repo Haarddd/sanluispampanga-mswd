@@ -42,8 +42,8 @@ const statusBadges: Record<DigitalIdStatus, { label: string; style: string }> =
       style:
         "text-sm px-2 py-1.5 font-semibold rounded-sm max-w-[90px] truncate lg:max-w-none lg:truncate-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 inline-block text-center",
     },
-    REVOKED: {
-      label: "Revoked",
+    SUSPENDED: {
+      label: "Suspended",
       style:
         "text-sm px-2 py-1.5 font-semibold rounded-sm max-w-[90px] truncate lg:max-w-none lg:truncate-none bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 inline-block text-center",
     },
@@ -59,7 +59,7 @@ export default function DigitalIdsPage() {
     digitalIds,
     seniors,
     batchGenerateDigitalIds,
-    revokeDigitalId,
+    suspendDigitalId,
     renewDigitalId,
     addToast,
   } = useAdminStore();
@@ -69,6 +69,8 @@ export default function DigitalIdsPage() {
     "ALL",
   );
   const [viewingId, setViewingId] = useState<DigitalId | null>(null);
+  const [suspendingId, setSuspendingId] = useState<string | null>(null);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
 
   const formatCardNumber = (num: string) => {
     if (!num) return "";
@@ -173,7 +175,7 @@ export default function DigitalIdsPage() {
           <SelectContent>
             <SelectItem value="ALL">All Status</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="REVOKED">Revoked</SelectItem>
+            <SelectItem value="SUSPENDED">Suspended</SelectItem>
             <SelectItem value="EXPIRED">Expired</SelectItem>
           </SelectContent>
         </Select>
@@ -245,10 +247,10 @@ export default function DigitalIdsPage() {
                             variant="outline"
                             size="sm"
                             className="h-8 px-2.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 border rounded-md"
-                            title="Revoke Digital Credentials"
-                            onClick={() => revokeDigitalId(idCard.id)}
+                            title="Suspend Digital Credentials"
+                            onClick={() => setSuspendingId(idCard.id)}
                           >
-                            <XCircle className="h-3.5 w-3.5 mr-1" /> Revoke
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> Suspend
                           </Button>
                         ) : (
                           <Button
@@ -256,7 +258,7 @@ export default function DigitalIdsPage() {
                             size="sm"
                             className="h-8 px-2.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border rounded-md"
                             title="Renew Digital Credentials"
-                            onClick={() => renewDigitalId(idCard.id)}
+                            onClick={() => setRenewingId(idCard.id)}
                           >
                             <RefreshCw className="h-3.5 w-3.5 mr-1" /> Renew
                           </Button>
@@ -483,6 +485,90 @@ export default function DigitalIdsPage() {
                     <Share2 className="h-3.5 w-3.5 mr-1.5" /> Share
                   </Button>
                 </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Suspend Confirmation Dialog */}
+      {suspendingId && (
+        <Dialog open onOpenChange={(open) => !open && setSuspendingId(null)}>
+          <DialogContent
+            className="max-w-sm gap-0 p-0 rounded-sm"
+            onPointerDownOutside={(e) => e.preventDefault()}
+          >
+            <DialogHeader className="flex flex-row items-center justify-between px-6 py-3 border-b space-y-0">
+              <DialogTitle className="font-semibold text-sm">
+                Suspend Digital ID
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Are you sure you want to suspend this digital ID? The senior citizen's status will be marked as inactive and they will no longer be verified until renewed.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-9 text-sm"
+                  onClick={() => setSuspendingId(null)}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-9 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                  onClick={() => {
+                    suspendDigitalId(suspendingId);
+                    setSuspendingId(null);
+                  }}
+                  type="button"
+                >
+                  Suspend ID
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Renew Confirmation Dialog */}
+      {renewingId && (
+        <Dialog open onOpenChange={(open) => !open && setRenewingId(null)}>
+          <DialogContent
+            className="max-w-sm gap-0 p-0 rounded-sm"
+            onPointerDownOutside={(e) => e.preventDefault()}
+          >
+            <DialogHeader className="flex flex-row items-center justify-between px-6 py-3 border-b space-y-0">
+              <DialogTitle className="font-semibold text-sm">
+                Renew Digital ID
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Are you sure you want to renew this digital ID? This will set the ID status back to ACTIVE and extend its expiration date by 5 years.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-9 text-sm"
+                  onClick={() => setRenewingId(null)}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  className="h-9 text-sm"
+                  onClick={() => {
+                    renewDigitalId(renewingId);
+                    setRenewingId(null);
+                  }}
+                  type="button"
+                >
+                  Renew ID
+                </Button>
               </div>
             </div>
           </DialogContent>

@@ -124,7 +124,7 @@ export interface AssistanceRequest {
   created_at: string;
 }
 
-export type DigitalIdStatus = "ACTIVE" | "EXPIRED" | "REVOKED";
+export type DigitalIdStatus = "ACTIVE" | "EXPIRED" | "SUSPENDED";
 
 export interface DigitalId {
   id: string;
@@ -179,7 +179,7 @@ interface AdminContextType {
   deleteSeniorPermanently: (id: string) => void;
   generateDigitalId: (userId: string) => void;
   batchGenerateDigitalIds: () => void;
-  revokeDigitalId: (id: string) => void;
+  suspendDigitalId: (id: string) => void;
   renewDigitalId: (id: string) => void;
   requestResubmission: (id: string, fields: string[], reason: string) => Promise<void>;
   approveResubmission: (id: string) => Promise<void>;
@@ -789,14 +789,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // REVOKE DIGITAL ID
-  const revokeDigitalId = async (id: string) => {
+  // SUSPEND DIGITAL ID
+  const suspendDigitalId = async (id: string) => {
     const digId = digitalIds.find((d) => d.id === id);
     if (!digId) return;
 
     const updatedIds = digitalIds.map((d) => {
       if (d.id === id) {
-        return { ...d, status: "REVOKED" as const };
+        return { ...d, status: "SUSPENDED" as const };
       }
       return d;
     });
@@ -804,10 +804,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_digital_ids", updatedIds);
 
     const senior = seniors.find((s) => s.id === digId.user_id);
-    addToast(`Revoked Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`, "error");
+    addToast(`Suspended Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`, "error");
 
     addLog(
-      "DIGITAL_ID_REVOKED",
+      "DIGITAL_ID_SUSPENDED",
       id,
       "digital_ids",
       { id_number: digId.id_number, name: senior?.full_name }
@@ -815,11 +815,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const supabase = createClient();
-      await supabase.from("digital_ids").update({ status: "REVOKED" }).eq("id", id);
+      await supabase.from("digital_ids").update({ status: "SUSPENDED" }).eq("id", id);
     } catch (e) {
       // Try mapping to user_id match if id is client-only uuid
       const supabase = createClient();
-      await supabase.from("digital_ids").update({ status: "REVOKED" }).eq("user_id", digId.user_id);
+      await supabase.from("digital_ids").update({ status: "SUSPENDED" }).eq("user_id", digId.user_id);
     }
   };
 
@@ -1321,7 +1321,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         deleteSeniorPermanently,
         generateDigitalId,
         batchGenerateDigitalIds,
-        revokeDigitalId,
+        suspendDigitalId,
         renewDigitalId,
         addMedicine,
         updateMedicine,
