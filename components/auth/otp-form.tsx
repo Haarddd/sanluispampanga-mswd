@@ -119,7 +119,9 @@ export function OTPForm() {
       setError(res.error);
       setLoading(false);
     } else if (res?.success && res?.redirect) {
-      router.push(res.redirect);
+      // Use full page load so the auth cookie is fully committed before the
+      // next request. router.push() (SPA navigation) can race with the cookie.
+      window.location.href = res.redirect;
     }
   };
 
@@ -143,7 +145,9 @@ export function OTPForm() {
       );
       setLoading(false);
     } else if (res?.success && res?.redirect) {
-      router.push(res.redirect);
+      // Use full page load so the auth cookie is fully committed before the
+      // next request. router.push() (SPA navigation) can race with the cookie.
+      window.location.href = res.redirect;
     }
   };
 

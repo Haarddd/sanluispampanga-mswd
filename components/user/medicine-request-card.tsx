@@ -17,6 +17,7 @@ interface MedicineRequest {
   status: RequestStatus;
   notes?: string;
   pharmacistNotes?: string;
+  prescriptionUrl?: string;
 }
 
 export function MedicineRequestCard({
@@ -25,7 +26,7 @@ export function MedicineRequestCard({
   request: MedicineRequest;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const statusLabels: Record<RequestStatus, string> = {
     pending: t.pending,
@@ -81,6 +82,22 @@ export function MedicineRequestCard({
               <span className="text-foreground font-medium text-right max-w-[60%]">
                 {request.notes}
               </span>
+            </div>
+          )}
+          {request.prescriptionUrl && (
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">
+                {language === "tl" ? "Reseta" : "Prescription"}
+              </span>
+              <a
+                href={request.prescriptionUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline font-semibold"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {language === "tl" ? "Tignan ang Reseta" : "View Prescription"}
+              </a>
             </div>
           )}
           {request.pharmacistNotes && (

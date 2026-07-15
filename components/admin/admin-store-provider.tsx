@@ -101,7 +101,7 @@ export interface MedicineRequest {
 
 export type AssistanceRequestStatus =
   | "PENDING"
-  | "IN_PROGRESS"
+  | "APPROVED"
   | "COMPLETED"
   | "REJECTED";
 
@@ -164,11 +164,11 @@ interface AdminContextType {
   toasts: ToastMessage[];
   addToast: (message: string, type?: ToastMessage["type"]) => void;
   removeToast: (id: string) => void;
-  
+
   // Archived items
   archivedSeniors: SeniorProfile[];
   archivedMedicines: Medicine[];
-  
+
   // Actions
   verifySenior: (id: string) => void;
   rejectSenior: (id: string, reason: string) => void;
@@ -181,7 +181,11 @@ interface AdminContextType {
   batchGenerateDigitalIds: () => void;
   suspendDigitalId: (id: string) => void;
   renewDigitalId: (id: string) => void;
-  requestResubmission: (id: string, fields: string[], reason: string) => Promise<void>;
+  requestResubmission: (
+    id: string,
+    fields: string[],
+    reason: string,
+  ) => Promise<void>;
   approveResubmission: (id: string) => Promise<void>;
   addMedicine: (medicine: Omit<Medicine, "id">) => void;
   updateMedicine: (id: string, medicine: Partial<Medicine>) => void;
@@ -191,13 +195,13 @@ interface AdminContextType {
   updateMedicineRequestStatus: (
     id: string,
     status: MedicineRequestStatus,
-    pharmacistNotes?: string
+    pharmacistNotes?: string,
   ) => void;
   updateAssistanceRequestStatus: (
     id: string,
     status: AssistanceRequestStatus,
     notes?: string,
-    assignedTo?: string | null
+    assignedTo?: string | null,
   ) => void;
 }
 
@@ -208,8 +212,12 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [seniors, setSeniors] = useState<SeniorProfile[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [medicineRequests, setMedicineRequests] = useState<MedicineRequest[]>([]);
-  const [assistanceRequests, setAssistanceRequests] = useState<AssistanceRequest[]>([]);
+  const [medicineRequests, setMedicineRequests] = useState<MedicineRequest[]>(
+    [],
+  );
+  const [assistanceRequests, setAssistanceRequests] = useState<
+    AssistanceRequest[]
+  >([]);
   const [digitalIds, setDigitalIds] = useState<DigitalId[]>([]);
   const [logs, setLogs] = useState<AdminLog[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -231,12 +239,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           { data: adminLogs },
           { data: resubs },
         ] = await Promise.all([
-          supabase.from("user_profiles").select("*, user_addresses(*), id_documents(*)"),
+          supabase
+            .from("user_profiles")
+            .select("*, user_addresses(*), id_documents(*)"),
           supabase.from("medicines").select("*"),
-          supabase.from("medicine_requests").select("*"),
+          supabase
+            .from("medicine_requests")
+            .select(
+              "id, user_id, medicine_id, quantity, reason, prescription_url, status, pharmacist_notes, request_date, dispense_date",
+            ),
           supabase.from("assistance_requests").select("*"),
           supabase.from("digital_ids").select("*"),
-          supabase.from("admin_logs").select("*").order("created_at", { ascending: false }),
+          supabase
+            .from("admin_logs")
+            .select("*")
+            .order("created_at", { ascending: false }),
           supabase.from("resubmissions").select("*").eq("status", "PENDING"),
         ]);
 
@@ -259,17 +276,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               latitude: 15.0253,
               longitude: 120.7854,
             };
-            const frontDoc = p.id_documents?.find((d: any) => d.id_type === "SENIOR_CITIZEN_ID_FRONT") || p.id_documents?.[0] || {
-              id: "",
-              id_type: "SENIOR_CITIZEN_ID_FRONT",
-              file_url: "",
-              verification_status: "PENDING",
-              upload_date: new Date().toISOString(),
-            };
-            const backDoc = p.id_documents?.find((d: any) => d.id_type === "SENIOR_CITIZEN_ID_BACK");
-            const userMedReqs = medReqs?.filter((r: any) => r.user_id === p.id) || [];
-            const userAstReqs = astReqs?.filter((r: any) => r.user_id === p.id) || [];
- 
+            const frontDoc = p.id_documents?.find(
+              (d: any) => d.id_type === "SENIOR_CITIZEN_ID_FRONT",
+            ) ||
+              p.id_documents?.[0] || {
+                id: "",
+                id_type: "SENIOR_CITIZEN_ID_FRONT",
+                file_url: "",
+                verification_status: "PENDING",
+                upload_date: new Date().toISOString(),
+              };
+            const backDoc = p.id_documents?.find(
+              (d: any) => d.id_type === "SENIOR_CITIZEN_ID_BACK",
+            );
+            const userMedReqs =
+              medReqs?.filter((r: any) => r.user_id === p.id) || [];
+            const userAstReqs =
+              astReqs?.filter((r: any) => r.user_id === p.id) || [];
+
             const mapped: SeniorProfile = {
               id: p.id,
               phone: p.phone,
@@ -277,25 +301,33 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               birthdate: p.birthdate || "",
               age: p.age || 0,
               verification_status: p.verification_status,
-              language_preference: p.language_preference === "Tagalog" || p.language_preference === "tl" ? "tl" : "en",
+              language_preference:
+                p.language_preference === "Tagalog" ||
+                p.language_preference === "tl"
+                  ? "tl"
+                  : "en",
               sms_notifications: p.sms_notifications ?? true,
               created_at: p.created_at,
               id_document: {
                 id: frontDoc.id,
                 id_type: frontDoc.id_type || "",
                 file_url: frontDoc.file_url || "",
-                verification_status: frontDoc.verification_status as DocumentVerificationStatus,
+                verification_status:
+                  frontDoc.verification_status as DocumentVerificationStatus,
                 rejection_reason: frontDoc.rejection_reason || undefined,
                 upload_date: frontDoc.upload_date,
               },
-              id_document_back: backDoc ? {
-                id: backDoc.id,
-                id_type: backDoc.id_type || "",
-                file_url: backDoc.file_url || "",
-                verification_status: backDoc.verification_status as DocumentVerificationStatus,
-                rejection_reason: backDoc.rejection_reason || undefined,
-                upload_date: backDoc.upload_date,
-              } : undefined,
+              id_document_back: backDoc
+                ? {
+                    id: backDoc.id,
+                    id_type: backDoc.id_type || "",
+                    file_url: backDoc.file_url || "",
+                    verification_status:
+                      backDoc.verification_status as DocumentVerificationStatus,
+                    rejection_reason: backDoc.rejection_reason || undefined,
+                    upload_date: backDoc.upload_date,
+                  }
+                : undefined,
               address: {
                 street: addr.street || "",
                 barangay: addr.barangay || "",
@@ -312,11 +344,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               resubmit_fields: p.resubmit_fields || [],
               pending_resubmission: (() => {
                 const resub = resubs?.find((r: any) => r.user_id === p.id);
-                return resub ? {
-                  id: resub.id,
-                  resubmitted_data: resub.resubmitted_data,
-                  created_at: resub.created_at,
-                } : undefined;
+                return resub
+                  ? {
+                      id: resub.id,
+                      resubmitted_data: resub.resubmitted_data,
+                      created_at: resub.created_at,
+                    }
+                  : undefined;
               })(),
             };
 
@@ -339,7 +373,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (medReqs) {
-          setMedicineRequests(medReqs);
+          const formattedMedReqs = medReqs.map((req: any) => ({
+            id: req.id,
+            user_id: req.user_id,
+            medicine_id: req.medicine_id,
+            quantity: req.quantity,
+            reason: req.reason,
+            prescription_url: req.prescription_url,
+            status: req.status,
+            pharmacist_notes: req.pharmacist_notes,
+            request_date: req.request_date,
+            dispense_date: req.dispense_date,
+          }));
+          setMedicineRequests(formattedMedReqs);
         }
         if (astReqs) {
           setAssistanceRequests(astReqs);
@@ -359,7 +405,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               details: l.details || {},
               status: l.status || "SUCCESS",
               created_at: l.created_at,
-            }))
+            })),
           );
         }
       } catch (err) {
@@ -374,7 +420,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(key, JSON.stringify(data));
   };
 
-  const addToast = (message: string, type: ToastMessage["type"] = "success") => {
+  const addToast = (
+    message: string,
+    type: ToastMessage["type"] = "success",
+  ) => {
     if (type === "success") {
       toast.success(message);
     } else if (type === "error") {
@@ -395,7 +444,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     targetId: string,
     targetType: string,
     details: Record<string, any>,
-    status: "SUCCESS" | "ERROR" = "SUCCESS"
+    status: "SUCCESS" | "ERROR" = "SUCCESS",
   ) => {
     const newLog: AdminLog = {
       id: "log-" + Math.random().toString(36).substring(2, 9),
@@ -435,20 +484,27 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_seniors", updatedSeniors);
 
     const senior = seniors.find((s) => s.id === id);
-    addToast(`Approved ${senior?.full_name ?? "Senior"}. SMS sent successfully.`, "success");
-    
-    addLog(
-      "USER_VERIFIED",
-      id,
-      "user_profiles",
-      { name: senior?.full_name, phone: senior?.phone }
+    addToast(
+      `Approved ${senior?.full_name ?? "Senior"}. SMS sent successfully.`,
+      "success",
     );
+
+    addLog("USER_VERIFIED", id, "user_profiles", {
+      name: senior?.full_name,
+      phone: senior?.phone,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ verification_status: "APPROVED" }).eq("id", id);
-      await supabase.from("id_documents").update({ verification_status: "APPROVED" }).eq("user_id", id);
-      
+      await supabase
+        .from("user_profiles")
+        .update({ verification_status: "APPROVED" })
+        .eq("id", id);
+      await supabase
+        .from("id_documents")
+        .update({ verification_status: "APPROVED" })
+        .eq("user_id", id);
+
       // Automatically generate Digital ID upon verification approval
       await generateDigitalId(id);
     } catch (e) {
@@ -480,19 +536,27 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_seniors", updatedSeniors);
 
     const senior = seniors.find((s) => s.id === id);
-    addToast(`Rejected onboarding for ${senior?.full_name ?? "Senior"}. Reason sent via SMS.`, "warning");
-
-    addLog(
-      "USER_REJECTED",
-      id,
-      "user_profiles",
-      { name: senior?.full_name, phone: senior?.phone, reason }
+    addToast(
+      `Rejected onboarding for ${senior?.full_name ?? "Senior"}. Reason sent via SMS.`,
+      "warning",
     );
+
+    addLog("USER_REJECTED", id, "user_profiles", {
+      name: senior?.full_name,
+      phone: senior?.phone,
+      reason,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ verification_status: "REJECTED" }).eq("id", id);
-      await supabase.from("id_documents").update({ verification_status: "REJECTED", rejection_reason: reason }).eq("user_id", id);
+      await supabase
+        .from("user_profiles")
+        .update({ verification_status: "REJECTED" })
+        .eq("id", id);
+      await supabase
+        .from("id_documents")
+        .update({ verification_status: "REJECTED", rejection_reason: reason })
+        .eq("user_id", id);
     } catch (e) {
       console.error("DB update error rejectSenior:", e);
     }
@@ -514,18 +578,26 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_seniors", updatedSeniors);
 
     const senior = seniors.find((s) => s.id === id);
-    addToast(`Flagged ${senior?.full_name ?? "Senior"} for clarification.`, "info");
-
-    addLog(
-      "USER_UPDATED",
-      id,
-      "user_profiles",
-      { name: senior?.full_name, flag_status: "NEEDS_CLARIFICATION", notes }
+    addToast(
+      `Flagged ${senior?.full_name ?? "Senior"} for clarification.`,
+      "info",
     );
+
+    addLog("USER_UPDATED", id, "user_profiles", {
+      name: senior?.full_name,
+      flag_status: "NEEDS_CLARIFICATION",
+      notes,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ verification_status: "NEEDS_CLARIFICATION", internal_notes: notes }).eq("id", id);
+      await supabase
+        .from("user_profiles")
+        .update({
+          verification_status: "NEEDS_CLARIFICATION",
+          internal_notes: notes,
+        })
+        .eq("id", id);
     } catch (e) {
       console.error("DB update error flagSenior:", e);
     }
@@ -546,16 +618,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_seniors", updatedSeniors);
 
     const senior = seniors.find((s) => s.id === id);
-    addLog(
-      "USER_UPDATED",
-      id,
-      "user_profiles",
-      { name: senior?.full_name, notes }
-    );
+    addLog("USER_UPDATED", id, "user_profiles", {
+      name: senior?.full_name,
+      notes,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ internal_notes: notes }).eq("id", id);
+      await supabase
+        .from("user_profiles")
+        .update({ internal_notes: notes })
+        .eq("id", id);
     } catch (e) {
       console.error("DB update error updateSeniorNotes:", e);
     }
@@ -576,18 +649,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    addToast(`Deactivated and archived profile for ${senior.full_name}.`, "error");
-
-    addLog(
-      "USER_DEACTIVATED",
-      id,
-      "user_profiles",
-      { name: senior.full_name }
+    addToast(
+      `Deactivated and archived profile for ${senior.full_name}.`,
+      "error",
     );
+
+    addLog("USER_DEACTIVATED", id, "user_profiles", { name: senior.full_name });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ verification_status: "ARCHIVED" }).eq("id", id);
+      await supabase
+        .from("user_profiles")
+        .update({ verification_status: "ARCHIVED" })
+        .eq("id", id);
     } catch (e) {
       console.error("DB update error deactivateSenior:", e);
     }
@@ -603,23 +677,27 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_archived_seniors", updatedArchived);
 
     setSeniors((prev) => {
-      const updated = [...prev, { ...senior, verification_status: "APPROVED" as VerificationStatus }];
+      const updated = [
+        ...prev,
+        { ...senior, verification_status: "APPROVED" as VerificationStatus },
+      ];
       saveToLocal("mswd_seniors", updated);
       return updated;
     });
 
-    addToast(`Restored profile for ${senior.full_name} to active list.`, "success");
-
-    addLog(
-      "USER_RESTORED",
-      id,
-      "user_profiles",
-      { name: senior.full_name }
+    addToast(
+      `Restored profile for ${senior.full_name} to active list.`,
+      "success",
     );
+
+    addLog("USER_RESTORED", id, "user_profiles", { name: senior.full_name });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({ verification_status: "APPROVED" }).eq("id", id);
+      await supabase
+        .from("user_profiles")
+        .update({ verification_status: "APPROVED" })
+        .eq("id", id);
     } catch (e) {
       console.error("DB update error restoreSenior:", e);
     }
@@ -636,12 +714,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     addToast(`Permanently deleted profile for ${senior.full_name}.`, "error");
 
-    addLog(
-      "USER_DELETED_PERMANENTLY",
-      id,
-      "user_profiles",
-      { name: senior.full_name }
-    );
+    addLog("USER_DELETED_PERMANENTLY", id, "user_profiles", {
+      name: senior.full_name,
+    });
 
     try {
       const supabase = createClient();
@@ -662,7 +737,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const generateUniqueIdNumber = (existing: string[]): string => {
       let attempts = 0;
       while (attempts < 1000) {
-        const num = Math.floor(100000000 + Math.random() * 900000000).toString();
+        const num = Math.floor(
+          100000000 + Math.random() * 900000000,
+        ).toString();
         if (!existing.includes(num)) return num;
         attempts++;
       }
@@ -671,7 +748,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     const idNumber = generateUniqueIdNumber(existingIdNumbers);
     const issueDate = new Date().toISOString().split("T")[0];
-    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000).toISOString().split("T")[0]; // +5 Years
+    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000)
+      .toISOString()
+      .split("T")[0]; // +5 Years
 
     const newId: DigitalId = {
       id: "id-" + Math.random().toString(36).substring(2, 9),
@@ -690,14 +769,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     });
 
     const senior = seniors.find((s) => s.id === userId);
-    addToast(`Generated Digital ID ${idNumber} for ${senior?.full_name ?? "Senior"}.`, "success");
-
-    addLog(
-      "DIGITAL_ID_GENERATED",
-      newId.id,
-      "digital_ids",
-      { user_id: userId, id_number: idNumber, name: senior?.full_name }
+    addToast(
+      `Generated Digital ID ${idNumber} for ${senior?.full_name ?? "Senior"}.`,
+      "success",
     );
+
+    addLog("DIGITAL_ID_GENERATED", newId.id, "digital_ids", {
+      user_id: userId,
+      id_number: idNumber,
+      name: senior?.full_name,
+    });
 
     try {
       const supabase = createClient();
@@ -719,7 +800,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const verifiedSeniorsWithoutId = seniors.filter(
       (s) =>
         s.verification_status === "APPROVED" &&
-        !digitalIds.some((d) => d.user_id === s.id && d.status === "ACTIVE")
+        !digitalIds.some((d) => d.user_id === s.id && d.status === "ACTIVE"),
     );
 
     if (verifiedSeniorsWithoutId.length === 0) {
@@ -731,7 +812,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const generateUniqueIdNumber = (existing: string[]): string => {
       let attempts = 0;
       while (attempts < 1000) {
-        const num = Math.floor(100000000 + Math.random() * 900000000).toString();
+        const num = Math.floor(
+          100000000 + Math.random() * 900000000,
+        ).toString();
         if (!existing.includes(num)) return num;
         attempts++;
       }
@@ -740,7 +823,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     const newIds: DigitalId[] = [];
     const issueDate = new Date().toISOString().split("T")[0];
-    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000).toISOString().split("T")[0];
+    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000)
+      .toISOString()
+      .split("T")[0];
 
     verifiedSeniorsWithoutId.forEach((s) => {
       const idNumber = generateUniqueIdNumber(existingIdNumbers);
@@ -756,12 +841,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         status: "ACTIVE",
       });
 
-      addLog(
-        "DIGITAL_ID_GENERATED",
-        s.id,
-        "digital_ids",
-        { user_id: s.id, id_number: idNumber, name: s.full_name }
-      );
+      addLog("DIGITAL_ID_GENERATED", s.id, "digital_ids", {
+        user_id: s.id,
+        id_number: idNumber,
+        name: s.full_name,
+      });
     });
 
     setDigitalIds((prev) => {
@@ -770,7 +854,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    addToast(`Batch generated ${newIds.length} Digital IDs successfully.`, "success");
+    addToast(
+      `Batch generated ${newIds.length} Digital IDs successfully.`,
+      "success",
+    );
 
     try {
       const supabase = createClient();
@@ -782,7 +869,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           issue_date: item.issue_date,
           expiry_date: item.expiry_date,
           status: "ACTIVE",
-        }))
+        })),
       );
     } catch (e) {
       console.error("DB update error batchGenerateDigitalIds:", e);
@@ -804,22 +891,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_digital_ids", updatedIds);
 
     const senior = seniors.find((s) => s.id === digId.user_id);
-    addToast(`Suspended Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`, "error");
-
-    addLog(
-      "DIGITAL_ID_SUSPENDED",
-      id,
-      "digital_ids",
-      { id_number: digId.id_number, name: senior?.full_name }
+    addToast(
+      `Suspended Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`,
+      "error",
     );
+
+    addLog("DIGITAL_ID_SUSPENDED", id, "digital_ids", {
+      id_number: digId.id_number,
+      name: senior?.full_name,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("digital_ids").update({ status: "SUSPENDED" }).eq("id", id);
+      await supabase
+        .from("digital_ids")
+        .update({ status: "SUSPENDED" })
+        .eq("id", id);
     } catch (e) {
       // Try mapping to user_id match if id is client-only uuid
       const supabase = createClient();
-      await supabase.from("digital_ids").update({ status: "SUSPENDED" }).eq("user_id", digId.user_id);
+      await supabase
+        .from("digital_ids")
+        .update({ status: "SUSPENDED" })
+        .eq("user_id", digId.user_id);
     }
   };
 
@@ -829,7 +923,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     if (!digId) return;
 
     const issueDate = new Date().toISOString().split("T")[0];
-    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000).toISOString().split("T")[0];
+    const expiryDate = new Date(Date.now() + 5 * 365 * 86400000)
+      .toISOString()
+      .split("T")[0];
 
     const updatedIds = digitalIds.map((d) => {
       if (d.id === id) {
@@ -846,14 +942,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_digital_ids", updatedIds);
 
     const senior = seniors.find((s) => s.id === digId.user_id);
-    addToast(`Renewed Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`, "success");
-
-    addLog(
-      "DIGITAL_ID_RENEWED",
-      id,
-      "digital_ids",
-      { id_number: digId.id_number, name: senior?.full_name }
+    addToast(
+      `Renewed Digital ID ${digId.id_number} for ${senior?.full_name ?? "Senior"}.`,
+      "success",
     );
+
+    addLog("DIGITAL_ID_RENEWED", id, "digital_ids", {
+      id_number: digId.id_number,
+      name: senior?.full_name,
+    });
 
     try {
       const supabase = createClient();
@@ -962,7 +1059,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const supabase = createClient();
-      await supabase.from("medicines").update({ is_active: false }).eq("id", id);
+      await supabase
+        .from("medicines")
+        .update({ is_active: false })
+        .eq("id", id);
     } catch (e) {
       console.error("DB update error deleteMedicine:", e);
     }
@@ -1020,16 +1120,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const updateMedicineRequestStatus = async (
     id: string,
     status: MedicineRequestStatus,
-    pharmacistNotes?: string
+    pharmacistNotes?: string,
   ) => {
     const request = medicineRequests.find((r) => r.id === id);
     if (!request) return;
 
     // Handle inventory checks
-    if ((status === "APPROVED" || status === "COMPLETED") && request.status === "PENDING") {
+    if (
+      (status === "APPROVED" || status === "COMPLETED") &&
+      request.status === "PENDING"
+    ) {
       const med = medicines.find((m) => m.id === request.medicine_id);
       if (med && med.available_quantity < request.quantity) {
-        addToast(`Insufficient stock for ${med.name}. Stock is ${med.available_quantity}, requested ${request.quantity}.`, "error");
+        addToast(
+          `Insufficient stock for ${med.name}. Stock is ${med.available_quantity}, requested ${request.quantity}.`,
+          "error",
+        );
         return;
       }
     }
@@ -1037,7 +1143,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const updatedRequests = medicineRequests.map((r) => {
       if (r.id === id) {
         const update: Partial<MedicineRequest> = { status };
-        if (pharmacistNotes !== undefined) update.pharmacist_notes = pharmacistNotes;
+        if (pharmacistNotes !== undefined)
+          update.pharmacist_notes = pharmacistNotes;
         if (status === "COMPLETED") {
           update.dispense_date = new Date().toISOString();
         }
@@ -1059,7 +1166,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           if (m.id === request.medicine_id) {
             return {
               ...m,
-              available_quantity: Math.max(0, m.available_quantity - request.quantity),
+              available_quantity: Math.max(
+                0,
+                m.available_quantity - request.quantity,
+              ),
             };
           }
           return m;
@@ -1091,19 +1201,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
     const senior = seniors.find((s) => s.id === request.user_id);
     const med = medicines.find((m) => m.id === request.medicine_id);
-    addToast(`Medicine request for ${senior?.full_name} marked as ${status}.`, "success");
-
-    addLog(
-      `MEDICINE_REQUEST_${status}`,
-      id,
-      "medicine_requests",
-      {
-        senior_name: senior?.full_name,
-        medicine_name: med?.name,
-        quantity: request.quantity,
-        notes: pharmacistNotes,
-      }
+    addToast(
+      `Medicine request for ${senior?.full_name} marked as ${status}.`,
+      "success",
     );
+
+    addLog(`MEDICINE_REQUEST_${status}`, id, "medicine_requests", {
+      senior_name: senior?.full_name,
+      medicine_name: med?.name,
+      quantity: request.quantity,
+      notes: pharmacistNotes,
+    });
 
     try {
       const supabase = createClient();
@@ -1112,7 +1220,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         .update({
           status,
           pharmacist_notes: pharmacistNotes,
-          dispense_date: status === "COMPLETED" ? new Date().toISOString() : null,
+          dispense_date:
+            status === "COMPLETED" ? new Date().toISOString() : null,
         })
         .eq("id", id);
     } catch (e) {
@@ -1125,7 +1234,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     id: string,
     status: AssistanceRequestStatus,
     notes?: string,
-    assignedTo?: string | null
+    assignedTo?: string | null,
   ) => {
     const request = assistanceRequests.find((r) => r.id === id);
     if (!request) return;
@@ -1143,19 +1252,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_ast_requests", updatedRequests);
 
     const senior = seniors.find((s) => s.id === request.user_id);
-    addToast(`Assistance request (${request.category}) marked as ${status}.`, "success");
-
-    addLog(
-      `ASSISTANCE_REQUEST_${status}`,
-      id,
-      "assistance_requests",
-      {
-        senior_name: senior?.full_name,
-        category: request.category,
-        assigned_to: assignedTo,
-        admin_notes: notes,
-      }
+    addToast(
+      `Assistance request (${request.category}) marked as ${status}.`,
+      "success",
     );
+
+    addLog(`ASSISTANCE_REQUEST_${status}`, id, "assistance_requests", {
+      senior_name: senior?.full_name,
+      category: request.category,
+      assigned_to: assignedTo,
+      admin_notes: notes,
+    });
 
     try {
       const supabase = createClient();
@@ -1170,9 +1277,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       console.error("DB update error updateAssistanceRequestStatus:", e);
     }
   };
- 
+
   // REQUEST RESUBMISSION
-  const requestResubmission = async (id: string, fields: string[], reason: string) => {
+  const requestResubmission = async (
+    id: string,
+    fields: string[],
+    reason: string,
+  ) => {
     const updatedSeniors = seniors.map((s) => {
       if (s.id === id) {
         return {
@@ -1182,7 +1293,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           id_document: {
             ...s.id_document,
             rejection_reason: reason,
-          }
+          },
         };
       }
       return s;
@@ -1191,23 +1302,31 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     saveToLocal("mswd_seniors", updatedSeniors);
 
     const senior = seniors.find((s) => s.id === id);
-    addToast(`Requested updates from ${senior?.full_name ?? "Senior"}.`, "info");
-    addLog(
-      "RESUBMISSION_REQUESTED",
-      id,
-      "user_profiles",
-      { name: senior?.full_name, fields, reason }
+    addToast(
+      `Requested updates from ${senior?.full_name ?? "Senior"}.`,
+      "info",
     );
+    addLog("RESUBMISSION_REQUESTED", id, "user_profiles", {
+      name: senior?.full_name,
+      fields,
+      reason,
+    });
 
     try {
       const supabase = createClient();
-      await supabase.from("user_profiles").update({
-        verification_status: "NEEDS_RESUBMISSION",
-        resubmit_fields: fields
-      }).eq("id", id);
-      await supabase.from("id_documents").update({
-        rejection_reason: reason
-      }).eq("user_id", id);
+      await supabase
+        .from("user_profiles")
+        .update({
+          verification_status: "NEEDS_RESUBMISSION",
+          resubmit_fields: fields,
+        })
+        .eq("id", id);
+      await supabase
+        .from("id_documents")
+        .update({
+          rejection_reason: reason,
+        })
+        .eq("user_id", id);
     } catch (e) {
       console.error("DB update error requestResubmission:", e);
     }
@@ -1223,13 +1342,18 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     const updatedSeniors = seniors.map((s) => {
       if (s.id === id) {
         const updatedAddress = { ...s.address };
-        if (resubmitted_data.street !== undefined) updatedAddress.street = resubmitted_data.street;
-        if (resubmitted_data.barangay !== undefined) updatedAddress.barangay = resubmitted_data.barangay;
-        if (resubmitted_data.latitude !== undefined) updatedAddress.latitude = resubmitted_data.latitude;
-        if (resubmitted_data.longitude !== undefined) updatedAddress.longitude = resubmitted_data.longitude;
+        if (resubmitted_data.street !== undefined)
+          updatedAddress.street = resubmitted_data.street;
+        if (resubmitted_data.barangay !== undefined)
+          updatedAddress.barangay = resubmitted_data.barangay;
+        if (resubmitted_data.latitude !== undefined)
+          updatedAddress.latitude = resubmitted_data.latitude;
+        if (resubmitted_data.longitude !== undefined)
+          updatedAddress.longitude = resubmitted_data.longitude;
 
         const updatedDoc = { ...s.id_document };
-        if (resubmitted_data.id_front_url) updatedDoc.file_url = resubmitted_data.id_front_url;
+        if (resubmitted_data.id_front_url)
+          updatedDoc.file_url = resubmitted_data.id_front_url;
 
         return {
           ...s,
@@ -1242,7 +1366,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             ...updatedDoc,
             verification_status: "APPROVED" as DocumentVerificationStatus,
             rejection_reason: undefined,
-          }
+          },
         };
       }
       return s;
@@ -1250,46 +1374,75 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setSeniors(updatedSeniors);
     saveToLocal("mswd_seniors", updatedSeniors);
 
-    addToast(`Approved resubmitted details for ${resubmitted_data.full_name || senior.full_name}.`, "success");
-    addLog(
-      "RESUBMISSION_APPROVED",
-      id,
-      "user_profiles",
-      { name: resubmitted_data.full_name || senior.full_name }
+    addToast(
+      `Approved resubmitted details for ${resubmitted_data.full_name || senior.full_name}.`,
+      "success",
     );
+    addLog("RESUBMISSION_APPROVED", id, "user_profiles", {
+      name: resubmitted_data.full_name || senior.full_name,
+    });
 
     try {
       const supabase = createClient();
-      
+
       const profileUpdates: any = {
         verification_status: "APPROVED",
-        resubmit_fields: []
+        resubmit_fields: [],
       };
-      if (resubmitted_data.full_name) profileUpdates.full_name = resubmitted_data.full_name;
+      if (resubmitted_data.full_name)
+        profileUpdates.full_name = resubmitted_data.full_name;
       if (resubmitted_data.pin) profileUpdates.login_pin = resubmitted_data.pin;
       await supabase.from("user_profiles").update(profileUpdates).eq("id", id);
 
       const addressUpdates: any = {};
-      if (resubmitted_data.street !== undefined) addressUpdates.street = resubmitted_data.street;
-      if (resubmitted_data.barangay !== undefined) addressUpdates.barangay = resubmitted_data.barangay;
-      if (resubmitted_data.latitude !== undefined) addressUpdates.latitude = resubmitted_data.latitude;
-      if (resubmitted_data.longitude !== undefined) addressUpdates.longitude = resubmitted_data.longitude;
+      if (resubmitted_data.street !== undefined)
+        addressUpdates.street = resubmitted_data.street;
+      if (resubmitted_data.barangay !== undefined)
+        addressUpdates.barangay = resubmitted_data.barangay;
+      if (resubmitted_data.latitude !== undefined)
+        addressUpdates.latitude = resubmitted_data.latitude;
+      if (resubmitted_data.longitude !== undefined)
+        addressUpdates.longitude = resubmitted_data.longitude;
       if (Object.keys(addressUpdates).length > 0) {
-        await supabase.from("user_addresses").update(addressUpdates).eq("user_id", id);
+        await supabase
+          .from("user_addresses")
+          .update(addressUpdates)
+          .eq("user_id", id);
       }
 
-      const docUpdates: any = { verification_status: "APPROVED", rejection_reason: null };
+      const docUpdates: any = {
+        verification_status: "APPROVED",
+        rejection_reason: null,
+      };
       if (resubmitted_data.id_front_url) {
-        await supabase.from("id_documents").update({ ...docUpdates, file_url: resubmitted_data.id_front_url }).eq("user_id", id).eq("id_type", "SENIOR_CITIZEN_ID_FRONT");
+        await supabase
+          .from("id_documents")
+          .update({ ...docUpdates, file_url: resubmitted_data.id_front_url })
+          .eq("user_id", id)
+          .eq("id_type", "SENIOR_CITIZEN_ID_FRONT");
       } else {
-        await supabase.from("id_documents").update(docUpdates).eq("user_id", id);
-      }
-      
-      if (resubmitted_data.id_back_url) {
-        await supabase.from("id_documents").update({ file_url: resubmitted_data.id_back_url, verification_status: "APPROVED", rejection_reason: null }).eq("user_id", id).eq("id_type", "SENIOR_CITIZEN_ID_BACK");
+        await supabase
+          .from("id_documents")
+          .update(docUpdates)
+          .eq("user_id", id);
       }
 
-      await supabase.from("resubmissions").update({ status: "APPROVED" }).eq("id", senior.pending_resubmission.id);
+      if (resubmitted_data.id_back_url) {
+        await supabase
+          .from("id_documents")
+          .update({
+            file_url: resubmitted_data.id_back_url,
+            verification_status: "APPROVED",
+            rejection_reason: null,
+          })
+          .eq("user_id", id)
+          .eq("id_type", "SENIOR_CITIZEN_ID_BACK");
+      }
+
+      await supabase
+        .from("resubmissions")
+        .update({ status: "APPROVED" })
+        .eq("id", senior.pending_resubmission.id);
 
       // Auto-generate Digital ID after approval
       generateDigitalId(id);
@@ -1335,7 +1488,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-
     </AdminContext.Provider>
   );
 }

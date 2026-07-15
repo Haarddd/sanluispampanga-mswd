@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +22,17 @@ import {
   HandHeart,
   Loader2,
   Handshake,
+  AlertCircle,
+  Upload,
+  X,
+  CheckCircle2,
+  ClipboardList,
+  Inbox,
 } from "lucide-react";
 import { MedicineRequestCard } from "@/components/user/medicine-request-card";
 import { SectionHeader } from "@/components/user/section-header";
 import { useLanguage } from "@/context/LanguageContext";
+import { toast } from "sonner";
 import {
   fetchMedicines,
   fetchUserRequests,
@@ -60,6 +67,11 @@ export function RequestsSectionsContent() {
   const [assistanceType, setAssistanceType] = useState<string>("");
   const [medicineNotes, setMedicineNotes] = useState<string>("");
   const [assistanceReason, setAssistanceReason] = useState<string>("");
+  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
+  const [prescriptionPreview, setPrescriptionPreview] = useState<string | null>(
+    null,
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [availableMedicines, setAvailableMedicines] = useState<any[]>([]);
   const [medicineRequests, setMedicineRequests] = useState<any[]>([]);
@@ -67,6 +79,55 @@ export function RequestsSectionsContent() {
   const [loading, setLoading] = useState(true);
   const [submittingMed, setSubmittingMed] = useState(false);
   const [submittingAssist, setSubmittingAssist] = useState(false);
+  const [showRequestsSheet, setShowRequestsSheet] = useState(false);
+  const [isClosingSheet, setIsClosingSheet] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(
+          language === "tl"
+            ? "Masyadong malaki ang file (Max 5MB)"
+            : "File size too large (Max 5MB)",
+        );
+        return;
+      }
+      setPrescriptionFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPrescriptionPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeFile = () => {
+    setPrescriptionFile(null);
+    setPrescriptionPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const closeRequestsSheet = () => {
+    setIsClosingSheet(true);
+    setTimeout(() => {
+      setShowRequestsSheet(false);
+      setIsClosingSheet(false);
+    }, 250);
+  };
+
+  useEffect(() => {
+    if (showRequestsSheet) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showRequestsSheet]);
 
   useEffect(() => {
     async function loadData() {
@@ -115,28 +176,46 @@ export function RequestsSectionsContent() {
   const medicineWordCount = countWords(medicineNotes);
   const assistanceWordCount = countWords(assistanceReason);
 
+  const selectedMedicine = availableMedicines.find((m) => m.id === medicine);
+  const maxQuantity = selectedMedicine?.available_quantity ?? 9999;
+
   const handleMedicineSubmit = async () => {
     if (!medicine) return;
+
+    if (quantity > maxQuantity) {
+      const medicineUnit = selectedMedicine?.unit || "units";
+      toast.error(
+        language === "tl"
+          ? `Mayroon lang ${maxQuantity} ${medicineUnit} available na stocks.`
+          : `Only ${maxQuantity} ${medicineUnit} available in stock.`,
+      );
+      return;
+    }
+
     setSubmittingMed(true);
     try {
-      const res = await submitMedicineRequest(
-        medicine,
-        quantity,
-        medicineNotes,
-      );
+      const formData = new FormData();
+      formData.append("medicineId", medicine);
+      formData.append("quantity", quantity.toString());
+      formData.append("notes", medicineNotes);
+      if (prescriptionFile) {
+        formData.append("prescriptionFile", prescriptionFile);
+      }
+
+      const res = await submitMedicineRequest(formData);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         setMedicine("");
         setQuantity(1);
         setMedicineNotes("");
-        // Reload requests
+        removeFile();
         const reqs = await fetchUserRequests();
         if (reqs) {
           clientCache.setUserRequests(reqs);
           setMedicineRequests(reqs.medicineRequests);
         }
-        alert(
+        toast.success(
           language === "tl"
             ? "Matagumpay na naipadala ang kahilingan!"
             : "Request submitted successfully!",
@@ -144,6 +223,11 @@ export function RequestsSectionsContent() {
       }
     } catch (err) {
       console.error(err);
+      toast.error(
+        language === "tl"
+          ? "May problema sa pagpadala ng kahilingan."
+          : "Failed to submit request.",
+      );
     } finally {
       setSubmittingMed(false);
     }
@@ -158,17 +242,16 @@ export function RequestsSectionsContent() {
         assistanceReason,
       );
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         setAssistanceType("");
         setAssistanceReason("");
-        // Reload requests
         const reqs = await fetchUserRequests();
         if (reqs) {
           clientCache.setUserRequests(reqs);
           setAssistanceRequests(reqs.assistanceRequests);
         }
-        alert(
+        toast.success(
           language === "tl"
             ? "Matagumpay na naipadala ang kahilingan!"
             : "Request submitted successfully!",
@@ -176,6 +259,11 @@ export function RequestsSectionsContent() {
       }
     } catch (err) {
       console.error(err);
+      toast.error(
+        language === "tl"
+          ? "May problema sa pagpadala ng kahilingan."
+          : "Failed to submit request.",
+      );
     } finally {
       setSubmittingAssist(false);
     }
@@ -207,7 +295,7 @@ export function RequestsSectionsContent() {
       {/* Medicine Tab Content */}
       <TabsContent
         value="medicine"
-        className="flex flex-col gap-8 mt-0 focus-visible:outline-none"
+        className="flex flex-col gap-8 mt-0 pb-24 focus-visible:outline-none"
       >
         {/* Section 1: Request Medicine */}
         <section className="flex flex-col gap-3">
@@ -308,10 +396,75 @@ export function RequestsSectionsContent() {
               )}
             </div>
 
+            {/* Prescription Upload */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-base font-medium flex items-center justify-between">
+                <span>
+                  {language === "tl"
+                    ? "Reseta ng Doktor"
+                    : "Doctor's Prescription"}{" "}
+                  <span className="text-muted-foreground text-base font-normal">
+                    {language === "tl" ? "(opsyonal)" : "(optional)"}
+                  </span>
+                </span>
+              </Label>
+              {prescriptionPreview ? (
+                <div className="relative rounded-lg overflow-hidden border">
+                  <img
+                    src={prescriptionPreview}
+                    alt="Prescription Preview"
+                    className="w-full h-40 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeFile}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4 text-foreground" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/80 backdrop-blur-sm">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-xs font-medium truncate max-w-[200px]">
+                      {prescriptionFile?.name}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-2 h-24 rounded-lg border bg-muted/40 hover:bg-muted/70 transition-colors cursor-pointer"
+                >
+                  <div className="text-center">
+                    <p className="text-base font-medium text-foreground">
+                      {language === "tl"
+                        ? "I-upload ang Reseta"
+                        : "Upload Prescription"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      JPG | PNG | WEBP (Max 5MB)
+                    </p>
+                  </div>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+
             {/* Submit */}
             <Button
               onClick={handleMedicineSubmit}
-              disabled={medicineWordCount > 300 || !medicine || submittingMed}
+              disabled={
+                medicineWordCount > 300 ||
+                !medicine ||
+                submittingMed ||
+                quantity > maxQuantity
+              }
               className="h-10 w-full text-base font-medium gap-2 rounded-md"
             >
               {submittingMed ? (
@@ -323,34 +476,12 @@ export function RequestsSectionsContent() {
             </Button>
           </div>
         </section>
-
-        {/* Section 2: My Medicine Requests */}
-        <section className="flex flex-col gap-3">
-          <SectionHeader
-            title={t.myRequests}
-            actionLabel={t.seeAll}
-            actionHref="/requests/history"
-          />
-          <div className="flex flex-col gap-2.5">
-            {medicineRequests.length === 0 ? (
-              <div className="rounded-xl border bg-card/30 p-6 text-center text-sm text-muted-foreground ">
-                {language === "tl"
-                  ? "Walang mga kahilingan sa gamot"
-                  : "No medicine requests found"}
-              </div>
-            ) : (
-              medicineRequests.map((request) => (
-                <MedicineRequestCard key={request.id} request={request} />
-              ))
-            )}
-          </div>
-        </section>
       </TabsContent>
 
       {/* Assistance Tab Content */}
       <TabsContent
         value="assistance"
-        className="flex flex-col gap-8 mt-0 focus-visible:outline-none"
+        className="flex flex-col gap-8 mt-0 pb-24 focus-visible:outline-none"
       >
         {/* Section 1: Request Assistance */}
         <section className="flex flex-col gap-3">
@@ -435,29 +566,111 @@ export function RequestsSectionsContent() {
             </Button>
           </div>
         </section>
-
-        {/* Section 2: My Assistance Requests */}
-        <section className="flex flex-col gap-3">
-          <SectionHeader
-            title={t.myRequests}
-            actionLabel={t.seeAll}
-            actionHref="/requests/history"
-          />
-          <div className="flex flex-col gap-2.5">
-            {assistanceRequests.length === 0 ? (
-              <div className="rounded-xl border bg-card/30 p-6 text-center text-sm text-muted-foreground">
-                {language === "tl"
-                  ? "Walang mga kahilingan sa tulong"
-                  : "No assistance requests found"}
-              </div>
-            ) : (
-              assistanceRequests.map((request) => (
-                <MedicineRequestCard key={request.id} request={request} />
-              ))
-            )}
-          </div>
-        </section>
       </TabsContent>
+
+      {/* Floating Button */}
+      <div className="fixed bottom-22 max-w-sm w-full left-1/2 -translate-x-1/2 px-5 flex justify-end pointer-events-none z-40">
+        <Button
+          onClick={() => setShowRequestsSheet(true)}
+          className="relative w-12 h-12 rounded-full shadow-lg flex items-center justify-center pointer-events-auto bg-primary hover:bg-primary/90 text-primary-foreground transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+        >
+          <Inbox size={24} />
+          {(activeTab === "medicine"
+            ? medicineRequests.length
+            : assistanceRequests.length) > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+              {activeTab === "medicine"
+                ? medicineRequests.length
+                : assistanceRequests.length}
+            </span>
+          )}
+        </Button>
+      </div>
+
+      {/* Bottom Sheet */}
+      {showRequestsSheet && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 animate-in fade-in duration-300"
+            onClick={closeRequestsSheet}
+          />
+          <div
+            className={`absolute bottom-0 bg-card rounded-t-2xl max-h-[80vh] w-full max-w-sm flex flex-col border-t border-border ${
+              isClosingSheet
+                ? "animate-out slide-out-to-bottom duration-300"
+                : "animate-in slide-in-from-bottom duration-300"
+            }`}
+          >
+            <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+              <p className="font-semibold text-base text-foreground">
+                {activeTab === "medicine"
+                  ? language === "tl"
+                    ? "Mga Kahilingan sa Gamot"
+                    : "Medicine Requests"
+                  : language === "tl"
+                    ? "Mga Kahilingan sa Tulong"
+                    : "Assistance Requests"}
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={closeRequestsSheet}
+                className="h-8 w-8 rounded-full hover:bg-muted"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+
+            <div className="px-6 py-4 overflow-y-auto flex-1 flex flex-col gap-3">
+              {activeTab === "medicine" ? (
+                medicineRequests.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    {language === "tl"
+                      ? "Walang mga kahilingan sa gamot"
+                      : "No medicine requests found"}
+                  </div>
+                ) : (
+                  medicineRequests
+                    .slice(0, 3)
+                    .map((request) => (
+                      <MedicineRequestCard key={request.id} request={request} />
+                    ))
+                )
+              ) : assistanceRequests.length === 0 ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  {language === "tl"
+                    ? "Walang mga kahilingan sa tulong"
+                    : "No assistance requests found"}
+                </div>
+              ) : (
+                assistanceRequests
+                  .slice(0, 3)
+                  .map((request) => (
+                    <MedicineRequestCard key={request.id} request={request} />
+                  ))
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t bg-muted/10 flex items-center justify-between shrink-0">
+              <span className="text-xs text-muted-foreground">
+                {activeTab === "medicine"
+                  ? `${medicineRequests.length} total`
+                  : `${assistanceRequests.length} total`}
+              </span>
+              <a
+                href="/requests/history"
+                className="text-sm font-semibold text-primary hover:underline"
+                onClick={() => {
+                  document.body.style.overflow = "unset";
+                  setShowRequestsSheet(false);
+                }}
+              >
+                {t.seeAll}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </Tabs>
   );
 }

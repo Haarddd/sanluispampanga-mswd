@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   useAdminStore,
   MedicineRequest,
@@ -22,6 +22,7 @@ import {
   Clock,
   AlertTriangle,
   Navigation,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { getSignedPrescriptionUrl } from "@/app/actions/requests";
 
 const statusLabels: Record<string, string> = {
   PENDING: "Pending",
@@ -63,7 +65,7 @@ const medStatusColors: Record<MedicineRequestStatus, string> = {
 const astStatusColors: Record<AssistanceRequestStatus, string> = {
   PENDING:
     "text-sm px-2 py-1.5 font-semibold rounded-sm max-w-[90px] truncate lg:max-w-none lg:truncate-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 inline-block text-center",
-  IN_PROGRESS:
+  APPROVED:
     "text-sm px-2 py-1.5 font-semibold rounded-sm max-w-[90px] truncate lg:max-w-none lg:truncate-none bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 inline-block text-center",
   COMPLETED:
     "text-sm px-2 py-1.5 font-semibold rounded-sm max-w-[90px] truncate lg:max-w-none lg:truncate-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 inline-block text-center",
@@ -100,6 +102,22 @@ export default function RequestQueuePage() {
 
   // Lightbox Image Dialog
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxLoading, setLightboxLoading] = useState(false);
+
+  const handleInspectPrescription = useCallback(
+    async (rawUrl: string | undefined | null) => {
+      if (!rawUrl) return;
+      setLightboxLoading(true);
+      const { signedUrl, error } = await getSignedPrescriptionUrl(rawUrl);
+      setLightboxLoading(false);
+      if (error || !signedUrl) {
+        console.error("Could not load prescription:", error);
+        return;
+      }
+      setLightboxImage(signedUrl);
+    },
+    [],
+  );
 
   // Rejection confirmation states
   const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
@@ -117,6 +135,15 @@ export default function RequestQueuePage() {
     null,
   );
   const [completingRequestType, setCompletingRequestType] = useState<
+    "medicine" | "assistance" | null
+  >(null);
+
+  // Approval confirmation states
+  const [isApproveConfirmOpen, setIsApproveConfirmOpen] = useState(false);
+  const [approvingRequestId, setApprovingRequestId] = useState<string | null>(
+    null,
+  );
+  const [approvingRequestType, setApprovingRequestType] = useState<
     "medicine" | "assistance" | null
   >(null);
 
@@ -593,15 +620,24 @@ export default function RequestQueuePage() {
                         </div>
                       </div>
 
-                      {/* Prescription simulated file upload */}
+                      {/* Prescription file upload / attachment check */}
                       <div className="border bg-muted/20 p-3 rounded-lg flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div>
                             <h5 className="font-semibold text-sm">
                               Doctor's Medical Prescription
                             </h5>
-                            <p className="text-xs text-muted-foreground">
-                              prescription_scanned_copy.png
+                            <p
+                              className={cn(
+                                "text-xs font-medium",
+                                selectedMedReq.prescription_url
+                                  ? "text-muted-foreground"
+                                  : "text-amber-600 dark:text-amber-400",
+                              )}
+                            >
+                              {selectedMedReq.prescription_url
+                                ? "prescription_scanned_copy.png"
+                                : "No prescription attached"}
                             </p>
                           </div>
                         </div>
@@ -609,13 +645,20 @@ export default function RequestQueuePage() {
                           variant="outline"
                           size="sm"
                           className="h-8 text-sm"
+                          disabled={
+                            !selectedMedReq.prescription_url || lightboxLoading
+                          }
                           onClick={() =>
-                            setLightboxImage(
-                              selectedMedReq.prescription_url || "/mswd.png",
+                            handleInspectPrescription(
+                              selectedMedReq.prescription_url,
                             )
                           }
                         >
-                          Inspect Attachment
+                          {lightboxLoading ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            "Inspect Attachment"
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -645,12 +688,9 @@ export default function RequestQueuePage() {
                       size="sm"
                       className="h-10 text-sm"
                       onClick={() => {
-                        updateMedicineRequestStatus(
-                          selectedMedReq.id,
-                          "APPROVED",
-                          adminNotes,
-                        );
-                        setSelectedMedReq(null);
+                        setApprovingRequestId(selectedMedReq.id);
+                        setApprovingRequestType("medicine");
+                        setIsApproveConfirmOpen(true);
                       }}
                     >
                       Approve
@@ -804,24 +844,6 @@ export default function RequestQueuePage() {
                           </div>
                         </div>
 
-                        {/* GPS Coordinates */}
-                        <div className="flex items-center gap-3 md:col-span-2">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                            <Navigation className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <span className="text-xs text-muted-foreground block">
-                              GPS Coordinates
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {senior.address.latitude},{" "}
-                              {senior.address.longitude}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="border-t md:col-span-2 my-1" />
-
                         {/* Description */}
                         <div className="flex items-start gap-3 md:col-span-2">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground mt-0.5">
@@ -829,7 +851,7 @@ export default function RequestQueuePage() {
                           </div>
                           <div>
                             <span className="text-xs text-muted-foreground block">
-                              Welfare Request Description
+                              Reason / Details
                             </span>
                             <p className="font-medium text-foreground mt-0.5">
                               {selectedAstReq.description}
@@ -837,54 +859,9 @@ export default function RequestQueuePage() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Coordinates location mapping simulator */}
-                      <div className="border rounded-lg p-3 bg-muted/20 space-y-2">
-                        <h5 className="font-semibold text-xs flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />{" "}
-                          Dispatch Location coordinates
-                        </h5>
-                        <div className="text-xs text-muted-foreground">
-                          GPS coordinates:{" "}
-                          <span className="font-bold text-foreground">
-                            {senior.address.latitude},{" "}
-                            {senior.address.longitude}
-                          </span>
-                        </div>
-                        {/* Simulated Map image box */}
-                        <div className="h-20 bg-muted border rounded-sm flex items-center justify-center text-xs text-muted-foreground select-none">
-                          San Luis Brgy. {senior.address.barangay} Map Preview
-                        </div>
-                      </div>
                     </div>
                   );
                 })()}
-
-                {/* Assigned to admin field */}
-                {selectedAstReq.assigned_to && (
-                  <div>
-                    <span className="text-xs text-muted-foreground block">
-                      Assigned Dispatcher
-                    </span>
-                    <p className="font-semibold text-foreground mt-0.5">
-                      {selectedAstReq.assigned_to} (Municipal Field Team)
-                    </p>
-                  </div>
-                )}
-
-                {/* Action Notes */}
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-foreground text-xs">
-                    Welfare Dispatch Notes
-                  </label>
-                  <Textarea
-                    placeholder="Enter dispatch notes, delivery logs, or action details..."
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    rows={2}
-                    className="text-xs rounded-md"
-                  />
-                </div>
               </div>
 
               {/* Modal Bottom Actions */}
@@ -909,21 +886,17 @@ export default function RequestQueuePage() {
                       size="sm"
                       className="h-10 text-sm"
                       onClick={() => {
-                        updateAssistanceRequestStatus(
-                          selectedAstReq.id,
-                          "IN_PROGRESS",
-                          adminNotes,
-                          "AD-01",
-                        );
-                        setSelectedAstReq(null);
+                        setApprovingRequestId(selectedAstReq.id);
+                        setApprovingRequestType("assistance");
+                        setIsApproveConfirmOpen(true);
                       }}
                     >
-                      Assign to Me
+                      Approve
                     </Button>
                   </div>
                 )}
 
-                {selectedAstReq.status === "IN_PROGRESS" && (
+                {selectedAstReq.status === "APPROVED" && (
                   <div className="grid grid-cols-2 w-full gap-2">
                     <Button
                       variant="outline"
@@ -1152,6 +1125,76 @@ export default function RequestQueuePage() {
                       setSelectedAstReq(null);
                     }
                     setIsCompleteConfirmOpen(false);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  type="button"
+                >
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* --- CONFIRM APPROVE MODAL --- */}
+      {isApproveConfirmOpen && (
+        <Dialog
+          open
+          onOpenChange={(open) => !open && setIsApproveConfirmOpen(false)}
+        >
+          <DialogContent
+            className="max-w-sm gap-0 p-0 rounded-sm"
+            showCloseButton={false}
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <DialogHeader className="flex flex-row items-center justify-between px-6 py-3 border-b space-y-0">
+              <DialogTitle className="font-semibold text-sm">
+                Confirm Request Approval
+              </DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Are you sure you want to approve this assistance request?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-9 text-sm w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsApproveConfirmOpen(false);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  className="h-9 text-sm w-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (approvingRequestId) {
+                      if (approvingRequestType === "medicine") {
+                        updateMedicineRequestStatus(
+                          approvingRequestId,
+                          "APPROVED",
+                          adminNotes,
+                        );
+                        setSelectedMedReq(null);
+                      } else if (approvingRequestType === "assistance") {
+                        updateAssistanceRequestStatus(
+                          approvingRequestId,
+                          "APPROVED",
+                          adminNotes,
+                          "AD-01"
+                        );
+                        setSelectedAstReq(null);
+                      }
+                    }
+                    setIsApproveConfirmOpen(false);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                   type="button"

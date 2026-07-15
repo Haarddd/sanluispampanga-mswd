@@ -25,13 +25,14 @@ export default function AdminAuthenticationPage() {
       const res = await loginAdmin(formData);
       if (res?.error) {
         toast.error(res.error);
+        setLoading(false);
       } else if (res?.success) {
+        // Don't set loading false - redirect will handle it
         router.push("/admin/dashboard");
       }
     } catch (err) {
       console.error(err);
       toast.error("An unexpected error occurred. Please try again.");
-    } finally {
       setLoading(false);
     }
   };

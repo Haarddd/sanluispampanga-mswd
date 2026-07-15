@@ -19,6 +19,7 @@ import {
   updateProfileLanguage,
   updateProfileNotifications,
 } from "@/app/actions/profile";
+import { clientCache } from "@/lib/client-cache";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,6 +80,7 @@ export function SettingsMenu({
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      clientCache.clear();
       await signOut();
     } catch (err) {
       console.error(err);

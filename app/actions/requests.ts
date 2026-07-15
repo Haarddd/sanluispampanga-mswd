@@ -33,7 +33,7 @@ export async function fetchUserRequests() {
   // Fetch medicine requests
   const { data: medicineRequests, error: medError } = await supabase
     .from("medicine_requests")
-    .select("id, medicine_id, quantity, reason, status, pharmacist_notes, request_date, medicines(name, generic_name, unit)")
+    .select("id, medicine_id, quantity, reason, prescription_url, status, pharmacist_notes, request_date, medicines(name, generic_name, unit)")
     .eq("user_id", user.id)
     .order("request_date", { ascending: false });
 
@@ -66,6 +66,7 @@ export async function fetchUserRequests() {
     }),
     status: req.status.toLowerCase() as "pending" | "approved" | "completed" | "rejected",
     pharmacistNotes: req.pharmacist_notes || "",
+    prescriptionUrl: req.prescription_url || "",
   }));
 
   const formattedAssistance = (assistanceRequests || []).map((req: any) => ({
@@ -94,7 +95,7 @@ export async function fetchUserRequests() {
   };
 }
 
-export async function submitMedicineRequest(medicineId: string, quantity: number, notes?: string) {
+export async function submitMedicineRequest(formData: FormData) {
   const supabase = await createClient();
 
   const {
@@ -105,6 +106,39 @@ export async function submitMedicineRequest(medicineId: string, quantity: number
     return { error: "Not authenticated" };
   }
 
+  const medicineId = formData.get("medicineId") as string;
+  const quantity = parseInt(formData.get("quantity") as string) || 1;
+  const notes = formData.get("notes") as string | null;
+  const prescriptionFile = formData.get("prescriptionFile") as File | null;
+
+  if (!medicineId) {
+    return { error: "Medicine ID is required" };
+  }
+
+  let prescriptionUrl = null;
+  if (prescriptionFile && prescriptionFile.size > 0) {
+    const fileExt = prescriptionFile.name.split(".").pop();
+    const filePath = `${user.id}/prescription_${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("id-documents")
+      .upload(filePath, prescriptionFile, {
+        contentType: prescriptionFile.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Upload error (prescription):", uploadError);
+      return { error: "Failed to upload prescription image." };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("id-documents").getPublicUrl(filePath);
+
+    prescriptionUrl = publicUrl;
+  }
+
   const { error } = await supabase
     .from("medicine_requests")
     .insert({
@@ -112,6 +146,7 @@ export async function submitMedicineRequest(medicineId: string, quantity: number
       medicine_id: medicineId,
       quantity,
       reason: notes || null,
+      prescription_url: prescriptionUrl,
       status: "PENDING",
     });
 
@@ -121,6 +156,32 @@ export async function submitMedicineRequest(medicineId: string, quantity: number
   }
 
   return { success: true };
+}
+
+export async function getSignedPrescriptionUrl(prescriptionUrl: string): Promise<{ signedUrl?: string; error?: string }> {
+  const supabase = await createClient();
+
+  // Extract the file path from the stored public URL.
+  // Stored URLs look like: https://<project>.supabase.co/storage/v1/object/public/id-documents/<path>
+  const marker = "/object/public/id-documents/";
+  const idx = prescriptionUrl.indexOf(marker);
+  if (idx === -1) {
+    // Already a non-standard URL or signed URL — just return as-is
+    return { signedUrl: prescriptionUrl };
+  }
+
+  const filePath = prescriptionUrl.slice(idx + marker.length);
+
+  const { data, error } = await supabase.storage
+    .from("id-documents")
+    .createSignedUrl(filePath, 60 * 60); // 1 hour
+
+  if (error || !data?.signedUrl) {
+    console.error("Error creating signed URL:", error);
+    return { error: "Failed to generate a signed URL for the prescription." };
+  }
+
+  return { signedUrl: data.signedUrl };
 }
 
 export async function submitAssistanceRequest(category: string, description: string) {
