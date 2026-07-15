@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Pill, Bell, Calendar, Check, Inbox, Loader2 } from "lucide-react";
+import { Pill, Bell, Inbox, CreditCard, LifeBuoy, Phone } from "lucide-react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SectionHeader } from "@/components/user/section-header";
 import { useLanguage } from "@/context/LanguageContext";
 import { fetchUserProfile } from "@/app/actions/profile";
 import { fetchUserRequests } from "@/app/actions/requests";
+import { fetchAnnouncements } from "@/app/actions/announcements-benefits";
+import { clientCache } from "@/lib/client-cache";
+import { createClient } from "@/lib/supabase/client";
 
 function getGreetingKey(
   hour: number,
@@ -32,75 +35,45 @@ export default function HomePage() {
     },
   );
 
-  const [profile, setProfile] = useState<any>(null);
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  // Mocked data with reactive labels
-  const announcements = [
-    {
-      id: 1,
-      title:
-        language === "tl"
-          ? "Iskedyul ng Pag-release ng Pension"
-          : "Pension Release Schedule Update",
-      date: language === "tl" ? "Hulyo 15, 2026" : "July 15, 2026",
-      description:
-        language === "tl"
-          ? "Ang buwanang pension para sa mga senior citizen ay ipapamahagi sa Hulyo 15-17 sa Municipal Hall."
-          : "The monthly pension for senior citizens will be released on July 15-17 at the Municipal Hall.",
-    },
-    {
-      id: 2,
-      title:
-        language === "tl"
-          ? "Libreng Check-up sa Kalusugan"
-          : "Free Medical Check-up",
-      date: language === "tl" ? "Hulyo 20, 2026" : "July 20, 2026",
-      description:
-        language === "tl"
-          ? "Libreng check-up sa medikal at dental para sa mga rehistradong senior citizen sa Barangay Health Center."
-          : "Free medical and dental check-up for registered senior citizens at the Barangay Health Center.",
-    },
-  ];
-
-  const [activeReminders, setActiveReminders] = useState([
-    {
-      id: 1,
-      title: t.medicinePickupReady,
-      description: "Amlodipine 5mg — approved & ready",
-      date: language === "tl" ? "Ngayon" : "Today",
-      icon: Pill,
-      href: "/requests?tab=medicine",
-    },
-    {
-      id: 2,
-      title: t.benefitsClaimDeadline,
-      description:
-        language === "tl"
-          ? "Matatapos ang claim sa Hulyo 30"
-          : "SSS Pension claim period ends July 30",
-      date: "Jul 30",
-      icon: Calendar,
-      href: "/benefits",
-    },
-  ]);
+  const [profile, setProfile] = useState<any>(() => {
+    return clientCache.getProfile();
+  });
+  const [announcements, setAnnouncements] = useState<any[]>(() => {
+    const cached = clientCache.getAnnouncements();
+    return cached ? cached.slice(0, 2) : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !clientCache.getAnnouncements();
+  });
 
   useEffect(() => {
     async function loadHomeData() {
+      // Check if cache exists
+      const cachedProfile = clientCache.getProfile();
+      const cachedAnnouncements = clientCache.getAnnouncements();
+
+      // If both cache exist, don't fetch
+      if (cachedProfile && cachedAnnouncements) {
+        setProfile(cachedProfile);
+        return;
+      }
+
       try {
-        const [profileData, requestsData] = await Promise.all([
-          fetchUserProfile(),
-          fetchUserRequests(),
-        ]);
+        const [profileData, requestsData, announcementsData] =
+          await Promise.all([
+            fetchUserProfile(),
+            fetchUserRequests(),
+            fetchAnnouncements(),
+          ]);
+
         if (profileData?.profile) {
           setProfile(profileData.profile);
+          clientCache.setProfile(profileData.profile);
         }
-        if (requestsData) {
-          const totalPending =
-            requestsData.medicineRequests.filter((r) => r.status === "pending").length +
-            requestsData.assistanceRequests.filter((r) => r.status === "pending").length;
-          setPendingRequestsCount(totalPending);
+
+        if (announcementsData) {
+          clientCache.setAnnouncements(announcementsData);
+          setAnnouncements(announcementsData.slice(0, 2));
         }
       } catch (err) {
         console.error("Error loading home data:", err);
@@ -109,15 +82,28 @@ export default function HomePage() {
       }
     }
     loadHomeData();
+
+    // Setup Supabase Realtime listener
+    const supabase = createClient();
+    const channel = supabase
+      .channel("home-announcements-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "announcements" },
+        async () => {
+          const fresh = await fetchAnnouncements();
+          clientCache.setAnnouncements(fresh);
+          setAnnouncements(fresh.slice(0, 2));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const handleDismissReminder = (id: number) => {
-    setActiveReminders((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const firstName = profile?.full_name ? profile.full_name.split(" ")[0] : "Senior";
-
-
+  const firstName = profile?.full_name ? profile.full_name.split(" ")[0] : "";
 
   return (
     <div className="flex flex-col gap-6 px-5 pt-8 pb-4">
@@ -140,133 +126,229 @@ export default function HomePage() {
           actionHref="/announcements"
         />
         <div className="flex flex-col gap-2.5">
-          {announcements.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-border bg-card p-4"
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
+          {loading ? (
+            <div className="space-y-2.5">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-border bg-card p-4 animate-pulse"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-muted shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-5/6" />
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground leading-snug">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                    {item.description}
-                  </p>
-                  <p className="mt-1.5 text-xs text-muted-foreground/70">
-                    {item.date}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            announcements.map((item) => {
+              const title =
+                language === "tl"
+                  ? item.title_tl || item.title_en
+                  : item.title_en;
+              const description =
+                language === "tl"
+                  ? item.description_tl || item.description_en
+                  : item.description_en;
+              const date = new Date(item.created_at).toLocaleDateString(
+                language === "tl" ? "fil-PH" : "en-PH",
+                { month: "long", day: "numeric", year: "numeric" },
+              );
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-border bg-card p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground leading-snug">
+                        {title}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                        {description}
+                      </p>
+                      <p className="mt-1.5 text-xs text-muted-foreground/70">
+                        {date}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {!loading && announcements.length === 0 && (
+            <div className="text-center py-6 border border-dashed rounded-xl text-xs text-muted-foreground italic">
+              {language === "tl"
+                ? "Walang bagong anunsyo."
+                : "No new announcements."}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Status Overview */}
+      {/* Quick Actions (Mabilisang Serbisyo) */}
       <section className="flex flex-col gap-3">
-        <SectionHeader title={t.status} />
+        <SectionHeader
+          title={language === "tl" ? "Mabilisang Serbisyo" : "Quick Services"}
+        />
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/requests"
-            className="rounded-xl border border-border bg-card p-5 hover:bg-accent/40 transition-colors block active:scale-[0.98]"
+            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/40 transition-colors flex flex-col gap-2.5 active:scale-[0.98]"
           >
-            <div className="flex flex-col items-start gap-4">
-              <div className="flex items-center gap-3 w-full">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                  <Inbox className="h-5 w-5" />
-                </div>
-                <p className="text-3xl font-bold tracking-tight text-foreground leading-none">
-                  {pendingRequestsCount}
-                </p>
-              </div>
-              <p className="text-xs font-semibold text-muted-foreground leading-snug">
-                {t.pendingRequests}
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Pill className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-tight">
+                {language === "tl" ? "Humiling ng Gamot" : "Medicine Request"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {language === "tl" ? "Libreng gamot" : "Free prescriptions"}
               </p>
             </div>
           </Link>
+
           <Link
-            href="/announcements"
-            className="rounded-xl border border-border bg-card p-5 hover:bg-accent/40 transition-colors block active:scale-[0.98]"
+            href="/requests"
+            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/40 transition-colors flex flex-col gap-2.5 active:scale-[0.98]"
           >
-            <div className="flex flex-col items-start gap-4">
-              <div className="flex items-center gap-3 w-full">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                  <Bell className="h-5 w-5" />
-                </div>
-                <p className="text-3xl font-bold tracking-tight text-foreground leading-none">
-                  {announcements.length}
-                </p>
-              </div>
-              <p className="text-xs font-semibold text-muted-foreground leading-snug">
-                {t.newAnnouncements}
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Inbox className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-tight">
+                {language === "tl" ? "Tulong Pinansyal" : "Cash Assistance"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {language === "tl" ? "Social Pension" : "Apply for support"}
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/profile"
+            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/40 transition-colors flex flex-col gap-2.5 active:scale-[0.98]"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-tight">
+                {language === "tl" ? "Aking Digital ID" : "My Digital ID"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {language === "tl" ? "Ipakita ang QR" : "Show credentials"}
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/support"
+            className="rounded-xl border border-border bg-card p-4 hover:bg-accent/40 transition-colors flex flex-col gap-2.5 active:scale-[0.98]"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <LifeBuoy className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-tight">
+                {language === "tl" ? "Suporta at Gabay" : "Get Support"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {language === "tl" ? "MSWD Helpdesk" : "Ask questions"}
               </p>
             </div>
           </Link>
         </div>
       </section>
 
-      {/* Upcoming Reminders */}
+      {/* Emergency Hotlines */}
       <section className="flex flex-col gap-3">
         <SectionHeader
-          title={t.reminders}
-          actionLabel={t.seeAll}
-          actionHref="/reminders"
+          title={
+            language === "tl"
+              ? "Mga Numero sa Sakuna / Emergency"
+              : "Emergency Hotlines"
+          }
         />
-        <div className="flex flex-col gap-2">
-          {activeReminders.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-card/30 p-6 text-center ">
-              <p className="text-xs text-muted-foreground italic">
-                {language === "tl"
-                  ? "Walang mga paalala sa kasalukuyan"
-                  : "No reminders at the moment"}
-              </p>
-            </div>
-          ) : (
-            activeReminders.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 "
-              >
-                <Link
-                  href={item.href}
-                  className="flex-1 min-w-0 flex items-center gap-3 hover:opacity-80 transition-opacity"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <item.icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground leading-snug">
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {item.description}
-                    </p>
-                  </div>
-                </Link>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-muted-foreground/70 font-medium mr-1.5">
-                    {item.date}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDismissReminder(item.id)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    title={
-                      language === "tl"
-                        ? "Markahan bilang tapos"
-                        : "Mark as done"
-                    }
-                  >
-                    <Check className="h-4 w-4" />
-                  </button>
-                </div>
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3.5 shadow-xs">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                <Phone className="h-4 w-4" />
               </div>
-            ))
-          )}
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  MSWD San Luis Office
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {language === "tl"
+                    ? "Lunes hanggang Biyernes, 8 AM - 5 PM"
+                    : "Monday to Friday, 8 AM - 5 PM"}
+                </p>
+              </div>
+            </div>
+            <a
+              href="tel:09171234567"
+              className="text-xs font-bold text-red-600 bg-red-500/10 dark:bg-red-950/40 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+            >
+              CALL
+            </a>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                <Phone className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  MDRRMO Rescue Hotline
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {language === "tl"
+                    ? "24/7 Oras ng Pagsagip at Ambulansya"
+                    : "24/7 Emergency & Rescue Services"}
+                </p>
+              </div>
+            </div>
+            <a
+              href="tel:09179998888"
+              className="text-xs font-bold text-red-600 bg-red-500/10 dark:bg-red-950/40 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+            >
+              CALL
+            </a>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                <Phone className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Municipal Health Office
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {language === "tl"
+                    ? "Tulong Medikal at Konsultasyon"
+                    : "Medical Assistance & Health Consultations"}
+                </p>
+              </div>
+            </div>
+            <a
+              href="tel:09178887777"
+              className="text-xs font-bold text-red-600 bg-red-500/10 dark:bg-red-950/40 px-3 py-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+            >
+              CALL
+            </a>
+          </div>
         </div>
       </section>
     </div>

@@ -22,6 +22,7 @@ import {
   Hexagon,
   Archive,
   MapPin,
+  Megaphone,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -67,6 +68,11 @@ export default function AdminSidebar() {
         { href: p("/digital-ids"), icon: CreditCard, label: "Digital IDs" },
         { href: p("/medicine"), icon: Pill, label: "Medicine Inventory" },
         { href: p("/requests"), icon: Inbox, label: "Request Queue" },
+        {
+          href: p("/announcements-benefits"),
+          icon: Megaphone,
+          label: "Announcement & Benefit",
+        },
       ],
     },
     {

@@ -17,6 +17,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useLanguage } from "@/context/LanguageContext";
+import { useRouter } from "next/navigation";
 
 const RESEND_SECONDS = 180;
 
@@ -30,6 +31,7 @@ export function OTPForm() {
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const router = useRouter();
 
   // Formatted display: e.g. "912 345 6789"
   const displayPhone = phone
@@ -116,6 +118,9 @@ export function OTPForm() {
     if (res?.error) {
       setError(res.error);
       setLoading(false);
+    } else if (res?.success && res?.redirect) {
+      setLoading(false);
+      router.push(res.redirect);
     }
   };
 
@@ -138,6 +143,9 @@ export function OTPForm() {
           : res.error,
       );
       setLoading(false);
+    } else if (res?.success && res?.redirect) {
+      setLoading(false);
+      router.push(res.redirect);
     }
   };
 

@@ -1,76 +1,82 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, Pill, HandHeart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Pill, HandHeart, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/user/status-badge";
 import { useLanguage } from "@/context/LanguageContext";
+import { fetchUserRequests } from "@/app/actions/requests";
+import { clientCache } from "@/lib/client-cache";
 
 export default function RequestsHistoryPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
+  const [historyList, setHistoryList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Integrated list of all mock requests
-  const historyList = [
-    {
-      id: 1,
+  function getStatusLabel(status: string, lang: string) {
+    if (status === "pending") return lang === "tl" ? "Pinoproseso" : "Pending";
+    if (status === "approved")
+      return lang === "tl" ? "Inaprubahan" : "Approved";
+    if (status === "completed") return lang === "tl" ? "Tapos na" : "Completed";
+    if (status === "rejected")
+      return lang === "tl" ? "Tinanggihan" : "Rejected";
+    return status;
+  }
+
+  function mergeRequests(reqs: any) {
+    const meds = (reqs.medicineRequests || []).map((m: any) => ({
+      id: `med-${m.id}`,
       type: "medicine",
-      title: "Amlodipine Besilate",
-      subtitle: "Amlodipine · 30 tablets",
-      date: language === "tl" ? "Hulyo 8, 2026" : "July 8, 2026",
-      status: "approved" as const,
-      statusLabel: language === "tl" ? "Inaprubahan" : "Approved",
-      details: language === "tl" ? "Handa nang kunin sa Health Office." : "Ready for pickup at the Health Office.",
-    },
-    {
-      id: 2,
+      title: m.medicineName,
+      subtitle: `${m.genericName} · ${m.quantity} ${m.unit}`,
+      rawDate: new Date(m.requestDate),
+      date: m.requestDate,
+      status: m.status,
+      statusLabel: getStatusLabel(m.status, language),
+      details: m.pharmacistNotes || null,
+    }));
+
+    const assists = (reqs.assistanceRequests || []).map((a: any) => ({
+      id: `assist-${a.id}`,
       type: "assistance",
-      title: language === "tl" ? "Tulong sa Transportasyon" : "Transportation Support",
-      subtitle: language === "tl" ? "Libreng biyahe patungong Ospital" : "Free shuttle to General Hospital",
-      date: language === "tl" ? "Hulyo 11, 2026" : "July 11, 2026",
-      status: "pending" as const,
-      statusLabel: language === "tl" ? "Pinoproseso" : "Pending",
-      details: language === "tl" ? "Para sa aking check-up sa Miyerkules" : "For my follow-up check-up this Wednesday",
-    },
-    {
-      id: 3,
-      type: "assistance",
-      title: language === "tl" ? "Tulong Medikal (Financial)" : "Medical Support (Financial Grant)",
-      subtitle: language === "tl" ? "Tulong pambili ng Insulin" : "Financial assistance for insulin",
-      date: language === "tl" ? "Hulyo 6, 2026" : "July 6, 2026",
-      status: "approved" as const,
-      statusLabel: language === "tl" ? "Inaprubahan" : "Approved",
-      details: language === "tl" ? "Maaari nang kunin ang tseke sa MSWD cashier." : "Check is ready for release at MSWD Cashier.",
-    },
-    {
-      id: 4,
-      type: "medicine",
-      title: "Metformin HCl",
-      subtitle: "Metformin · 60 tablets",
-      date: language === "tl" ? "Hulyo 5, 2026" : "July 5, 2026",
-      status: "completed" as const,
-      statusLabel: language === "tl" ? "Tapos na" : "Completed",
-    },
-    {
-      id: 5,
-      type: "medicine",
-      title: "Losartan Potassium",
-      subtitle: "Losartan · 30 tablets",
-      date: language === "tl" ? "Hulyo 10, 2026" : "July 10, 2026",
-      status: "pending" as const,
-      statusLabel: language === "tl" ? "Pinoproseso" : "Pending",
-      details: language === "tl" ? "Para sa maintenance — high blood" : "For maintenance — high blood pressure",
-    },
-    {
-      id: 6,
-      type: "assistance",
-      title: language === "tl" ? "Tulong sa Pagkain" : "Food Assistance",
-      subtitle: language === "tl" ? "Kahon ng pagkain (Food pack)" : "Emergency food pack supply",
-      date: language === "tl" ? "Hunyo 20, 2026" : "June 20, 2026",
-      status: "completed" as const,
-      statusLabel: language === "tl" ? "Tapos na" : "Completed",
-    },
-  ];
+      title: a.medicineName, // Mapped to Category name
+      subtitle: a.genericName, // Mapped to Description
+      rawDate: new Date(a.requestDate),
+      date: a.requestDate,
+      status: a.status,
+      statusLabel: getStatusLabel(a.status, language),
+      details: null,
+    }));
+
+    return [...meds, ...assists].sort(
+      (a, b) => b.rawDate.getTime() - a.rawDate.getTime(),
+    );
+  }
+
+  useEffect(() => {
+    async function loadHistory() {
+      const cached = clientCache.getUserRequests();
+      if (cached) {
+        setHistoryList(mergeRequests(cached));
+        setLoading(false);
+      }
+
+      try {
+        const reqs = await fetchUserRequests();
+        if (reqs) {
+          clientCache.setUserRequests(reqs);
+          setHistoryList(mergeRequests(reqs));
+        }
+      } catch (err) {
+        console.error("Error loading history:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadHistory();
+  }, [language]); // Reload to update status labels when language shifts
 
   return (
     <div className="flex flex-col gap-6 px-5 pt-8 pb-4">
@@ -87,66 +93,103 @@ export default function RequestsHistoryPage() {
         </Button>
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            {language === "tl" ? "Kasaysayan ng mga Request" : "Request History"}
+            {language === "tl"
+              ? "Kasaysayan ng mga Request"
+              : "Request History"}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {language === "tl" ? "Mga nakaraang kahilingan para sa gamot at tulong" : "Full record of your medicine and general requests"}
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {language === "tl"
+              ? "Mga nakaraang kahilingan para sa gamot at tulong"
+              : "Full record of your medicine and general requests"}
           </p>
         </div>
       </div>
 
       {/* History List */}
       <div className="flex flex-col gap-3">
-        {historyList.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-xl border border-border bg-card p-4"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
-                  {item.type === "medicine" ? (
-                    <Pill className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <HandHeart className="h-4 w-4 text-muted-foreground" />
-                  )}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-border bg-card p-4 animate-pulse"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="h-9 w-9 bg-muted rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-1/3" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="h-5 bg-muted rounded w-16 shrink-0" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground truncate">
-                    {item.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {item.subtitle}
-                  </p>
+                <div className="mt-3 border-t border-border pt-3 space-y-2">
+                  <div className="h-3 bg-muted rounded w-1/4" />
+                  <div className="h-3 bg-muted rounded w-3/4" />
                 </div>
               </div>
-              <StatusBadge variant={item.status} className="shrink-0">
-                {item.statusLabel}
-              </StatusBadge>
-            </div>
+            ))}
+          </div>
+        ) : (
+          historyList.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border border-border bg-card p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
+                    {item.type === "medicine" ? (
+                      <Pill className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Handshake className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                </div>
+                <StatusBadge variant={item.status} className="shrink-0">
+                  {item.statusLabel}
+                </StatusBadge>
+              </div>
 
-            <div className="mt-3 border-t border-border pt-3 flex flex-col gap-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">
-                  {language === "tl" ? "Petsa" : "Date"}
-                </span>
-                <span className="text-foreground font-medium">
-                  {item.date}
-                </span>
-              </div>
-              {item.details && (
+              <div className="mt-3 border-t border-border pt-3 flex flex-col gap-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
-                    {language === "tl" ? "Mga detalye" : "Details"}
+                    {language === "tl" ? "Petsa" : "Date"}
                   </span>
-                  <span className="text-foreground font-medium text-right max-w-[70%]">
-                    {item.details}
+                  <span className="text-foreground font-medium">
+                    {item.date}
                   </span>
                 </div>
-              )}
+                {item.details && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {language === "tl" ? "Mga detalye" : "Details"}
+                    </span>
+                    <span className="text-foreground font-medium text-right max-w-[70%]">
+                      {item.details}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
+          ))
+        )}
+        {!loading && historyList.length === 0 && (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            {language === "tl"
+              ? "Walang mga nakaraang request."
+              : "No request history available."}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

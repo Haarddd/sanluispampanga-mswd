@@ -14,7 +14,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Minus, Plus, Send, Heart, HandHeart, Loader2 } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Send,
+  Heart,
+  HandHeart,
+  Loader2,
+  Handshake,
+} from "lucide-react";
 import { MedicineRequestCard } from "@/components/user/medicine-request-card";
 import { SectionHeader } from "@/components/user/section-header";
 import { useLanguage } from "@/context/LanguageContext";
@@ -24,6 +32,7 @@ import {
   submitMedicineRequest,
   submitAssistanceRequest,
 } from "@/app/actions/requests";
+import { clientCache } from "@/lib/client-cache";
 
 export function RequestsSectionsContent() {
   const { t, language } = useLanguage();
@@ -36,6 +45,7 @@ export function RequestsSectionsContent() {
 
   useEffect(() => {
     if (tabParam === "medicine" || tabParam === "assistance") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -60,14 +70,34 @@ export function RequestsSectionsContent() {
 
   useEffect(() => {
     async function loadData() {
+      // 1. Read from client cache first to prevent redundant loader states
+      const cachedMeds = clientCache.getMedicines();
+      const cachedReqs = clientCache.getUserRequests();
+
+      if (cachedMeds) {
+        setAvailableMedicines(cachedMeds);
+      }
+      if (cachedReqs) {
+        setMedicineRequests(cachedReqs.medicineRequests);
+        setAssistanceRequests(cachedReqs.assistanceRequests);
+        setLoading(false);
+      }
+
       try {
         const [meds, reqs] = await Promise.all([
-          fetchMedicines(),
+          cachedMeds ? Promise.resolve(cachedMeds) : fetchMedicines(),
           fetchUserRequests(),
         ]);
-        setAvailableMedicines(meds);
-        setMedicineRequests(reqs.medicineRequests);
-        setAssistanceRequests(reqs.assistanceRequests);
+
+        if (meds) {
+          clientCache.setMedicines(meds);
+          setAvailableMedicines(meds);
+        }
+        if (reqs) {
+          clientCache.setUserRequests(reqs);
+          setMedicineRequests(reqs.medicineRequests);
+          setAssistanceRequests(reqs.assistanceRequests);
+        }
       } catch (err) {
         console.error("Error loading data:", err);
       } finally {
@@ -102,7 +132,10 @@ export function RequestsSectionsContent() {
         setMedicineNotes("");
         // Reload requests
         const reqs = await fetchUserRequests();
-        setMedicineRequests(reqs.medicineRequests);
+        if (reqs) {
+          clientCache.setUserRequests(reqs);
+          setMedicineRequests(reqs.medicineRequests);
+        }
         alert(
           language === "tl"
             ? "Matagumpay na naipadala ang kahilingan!"
@@ -131,7 +164,10 @@ export function RequestsSectionsContent() {
         setAssistanceReason("");
         // Reload requests
         const reqs = await fetchUserRequests();
-        setAssistanceRequests(reqs.assistanceRequests);
+        if (reqs) {
+          clientCache.setUserRequests(reqs);
+          setAssistanceRequests(reqs.assistanceRequests);
+        }
         alert(
           language === "tl"
             ? "Matagumpay na naipadala ang kahilingan!"
@@ -163,7 +199,7 @@ export function RequestsSectionsContent() {
           value="assistance"
           className="gap-2 text-sm font-medium rounded-md"
         >
-          <HandHeart className="h-4 w-4" />
+          <Handshake className="h-4 w-4" />
           {t.assistance}
         </TabsTrigger>
       </TabsList>
@@ -297,7 +333,7 @@ export function RequestsSectionsContent() {
           />
           <div className="flex flex-col gap-2.5">
             {medicineRequests.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-card/30 p-6 text-center text-xs text-muted-foreground italic">
+              <div className="rounded-xl border bg-card/30 p-6 text-center text-sm text-muted-foreground ">
                 {language === "tl"
                   ? "Walang mga kahilingan sa gamot"
                   : "No medicine requests found"}
@@ -409,7 +445,7 @@ export function RequestsSectionsContent() {
           />
           <div className="flex flex-col gap-2.5">
             {assistanceRequests.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-card/30 p-6 text-center text-xs text-muted-foreground italic">
+              <div className="rounded-xl border bg-card/30 p-6 text-center text-sm text-muted-foreground">
                 {language === "tl"
                   ? "Walang mga kahilingan sa tulong"
                   : "No assistance requests found"}
@@ -433,7 +469,7 @@ export function RequestsSections() {
     <Suspense
       fallback={
         <div className="text-center py-6 text-sm text-muted-foreground">
-          Loading...
+          Loading
         </div>
       }
     >

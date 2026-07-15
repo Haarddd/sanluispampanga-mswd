@@ -15,6 +15,7 @@ export async function submitOnboarding(formData: FormData) {
   }
 
   const fullName = formData.get("fullName") as string;
+  const birthdate = formData.get("birthdate") as string;
   const street = formData.get("street") as string;
   const barangay = formData.get("barangay") as string;
   const municipality = formData.get("municipality") as string;
@@ -28,7 +29,20 @@ export async function submitOnboarding(formData: FormData) {
   const idBackFile = formData.get("idBackFile") as File | null;
 
   if (!fullName?.trim()) return { error: "Full name is required" };
+  if (!birthdate) return { error: "Date of birth is required" };
   if (!pin || pin.length !== 6) return { error: "A 6-digit PIN is required" };
+
+  // Calculate age dynamically
+  let age: number | null = null;
+  if (birthdate) {
+    const birthDateObj = new Date(birthdate);
+    const today = new Date();
+    age = today.getFullYear() - birthDateObj.getFullYear();
+    const m = today.getMonth() - birthDateObj.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDateObj.getDate())) {
+      age--;
+    }
+  }
 
   // 1. Helper function to upload an ID document
   const uploadDocument = async (file: File, typeSuffix: string) => {
@@ -69,6 +83,8 @@ export async function submitOnboarding(formData: FormData) {
     .from("user_profiles")
     .update({
       full_name: fullName.trim(),
+      birthdate: birthdate,
+      age: age,
       verification_status: "PENDING_ADMIN_REVIEW",
       login_pin: pin,
     })

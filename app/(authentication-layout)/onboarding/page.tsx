@@ -49,6 +49,7 @@ type Step = "profile" | "pin";
 
 interface FormState {
   fullName: string;
+  birthdate: string;
   street: string;
   barangay: string;
   latitude: number | null;
@@ -71,6 +72,7 @@ export default function OnboardingPage() {
 
   const [form, setForm] = useState<FormState>({
     fullName: "",
+    birthdate: "",
     street: "",
     barangay: "",
     latitude: null,
@@ -226,6 +228,14 @@ export default function OnboardingPage() {
       );
       return;
     }
+    if (!form.birthdate) {
+      setError(
+        language === "tl"
+          ? "Kailangan ang petsa ng kapanganakan."
+          : "Date of birth is required.",
+      );
+      return;
+    }
     if (!form.idFrontFile || !form.idBackFile) {
       setError(
         language === "tl"
@@ -268,6 +278,7 @@ export default function OnboardingPage() {
 
     const formData = new FormData();
     formData.append("fullName", form.fullName.trim());
+    formData.append("birthdate", form.birthdate);
     formData.append("street", form.street);
     formData.append("barangay", form.barangay);
     formData.append("municipality", "San Luis");
@@ -328,6 +339,22 @@ export default function OnboardingPage() {
               value={form.fullName}
               onChange={(e) => setField("fullName", e.target.value)}
               className="pl-4 h-12 text-base md:text-base rounded-md"
+            />
+          </div>
+
+          {/* Date of Birth */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="birthdate" className="text-base font-medium">
+              {language === "tl" ? "Petsa ng Kapanganakan" : "Date of Birth"}{" "}
+              <span className="text-destructive font-bold">*</span>
+            </Label>
+            <Input
+              id="birthdate"
+              type="date"
+              required
+              value={form.birthdate}
+              onChange={(e) => setField("birthdate", e.target.value)}
+              className="pl-4 pr-4 h-12 text-base md:text-base rounded-md"
             />
           </div>
 

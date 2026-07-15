@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface SettingsMenuProps {
   initialSmsNotifications?: boolean;
@@ -58,8 +59,18 @@ export function SettingsMenu({
     setUpdatingNotifications(true);
     try {
       await updateProfileNotifications(checked);
+      toast.success(
+        language === "tl"
+          ? "Nag-update ang notification settings"
+          : "Notification settings updated",
+      );
     } catch (err) {
       console.error(err);
+      toast.error(
+        language === "tl"
+          ? "Nabigo ang pag-update ng settings"
+          : "Failed to update settings",
+      );
     } finally {
       setUpdatingNotifications(false);
     }
@@ -205,7 +216,7 @@ export function SettingsMenu({
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
           <LogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
         </div>
-        <p className="text-sm font-medium text-red-600 dark:text-red-400">
+        <p className="text-base font-medium text-red-600 dark:text-red-400">
           {t.logout}
         </p>
       </button>

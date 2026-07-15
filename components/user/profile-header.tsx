@@ -1,11 +1,14 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { BadgeCheck } from "lucide-react";
 
 export function ProfileHeader({
   name,
   phone,
+  isVerified,
 }: {
   name: string;
   phone: string;
+  isVerified?: boolean;
 }) {
   const initials = name
     .split(" ")
@@ -25,7 +28,15 @@ export function ProfileHeader({
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           {name}
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{phone}</p>
+        <p className="text-sm text-muted-foreground">
+          {phone?.startsWith("63") ? "0" + phone.slice(2) : phone}
+        </p>
+        {isVerified && (
+          <span className="flex text-sm items-center mt-1 gap-1 text-blue-600">
+            <BadgeCheck className="h-4 w-4 text-blue-600" />
+            Fully Verified
+          </span>
+        )}
       </div>
     </div>
   );
