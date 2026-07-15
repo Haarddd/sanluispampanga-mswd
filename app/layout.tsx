@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { LanguageProvider } from "@/context/LanguageContext";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Barangay Makinabang",
-  description: " Official website for the Barangay Makinabang",
+  title: "MSWD San Luis, Pampanga",
+  description: "Official website for the MSWD San Luis, Pampanga",
 };
 
 export default function RootLayout({
@@ -27,7 +29,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
     >
       <body>
         <ThemeProvider
@@ -36,7 +38,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <LanguageProvider>
+            {children}
+            <Toaster position="top-center" richColors />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
