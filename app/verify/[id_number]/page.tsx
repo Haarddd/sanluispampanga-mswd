@@ -60,7 +60,7 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
     });
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-card border p-8 max-w-sm w-full text-center shadow-lg rounded-lg">
+        <div className="bg-card border p-6 max-w-sm w-full text-center shadow-lg rounded-lg">
           <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
             <XCircle className="h-10 w-10 text-red-600" />
           </div>
@@ -122,7 +122,7 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
-      <div className="bg-card border p-8 max-w-sm w-full text-center shadow-lg rounded-2xl">
+      <div className="bg-card border p-6 max-w-sm w-full text-center shadow-lg rounded-2xl">
         {/* Status Icon */}
         <div
           className={`mx-auto w-16 h-16 ${statusIconBg} rounded-full flex items-center justify-center mb-4`}
@@ -134,69 +134,53 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
         <h1 className="text-xl font-bold mb-2">{statusTitle}</h1>
 
         {/* Short Status Description */}
-        <p className="text-sm text-muted-foreground mb-6">{statusDesc}</p>
+        <p className="text-base text-muted-foreground mb-4">{statusDesc}</p>
 
         {/* Citizen Details */}
-        <div className="border-t border-border pt-6 text-left space-y-4">
+        <div className="border-t border-border pt-4 text-left space-y-4">
           <div>
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+            <span className="text-xs text-muted-foreground font-medium">
               Citizen Name
             </span>
-            <span className="text-base font-bold block mt-0.5 text-foreground">
+            <span className="text-sm font-medium block">
               {user?.full_name || "Unknown Citizen"}
             </span>
           </div>
 
           <div>
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+            <span className="text-xs text-muted-foreground font-medium">
               Digital ID Card Number
             </span>
-            <span className="text-sm font-mono font-medium block mt-0.5 text-blue-600 dark:text-blue-400">
+            <span className="text-sm font-mono font-medium block">
               {formatCardNumber(cleanIdNumber)}
             </span>
           </div>
 
           <div>
-            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+            <span className="text-xs text-muted-foreground font-medium">
               Registered Address
             </span>
-            <div className="flex items-start gap-1.5 mt-1">
-              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <span className="text-sm font-semibold text-muted-foreground leading-relaxed">
-                {addressStr}
-              </span>
-            </div>
+            <span className="text-sm font-medium block">{addressStr}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
             <div>
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+              <span className="text-xs text-muted-foreground font-medium">
                 Date of Issue
               </span>
-              <span className="text-sm font-medium block mt-0.5 text-foreground">
+              <span className="text-sm font-medium block">
                 {digitalId.issue_date}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">
+              <span className="text-xs text-muted-foreground font-medium">
                 Date of Expiry
               </span>
-              <span className="text-sm font-medium block mt-0.5 text-foreground">
+              <span className="text-sm font-medium block">
                 {digitalId.expiry_date}
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Footer Seal */}
-        <div className="border-t border-border mt-6 pt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Heart className="h-3.5 w-3.5 text-red-500 fill-red-500" />
-            <span className="font-semibold">MSWD San Luis</span>
-          </div>
-          <span className="font-bold uppercase tracking-widest text-[9px]">
-            Pampanga, PH
-          </span>
         </div>
       </div>
     </div>

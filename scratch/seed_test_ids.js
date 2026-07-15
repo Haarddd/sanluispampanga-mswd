@@ -1,6 +1,7 @@
-const { Client } = require('pg');
+const { Client } = require("pg");
 
-const connectionString = "postgresql://postgres.wvsrkammvmlbhqdcmfmg:Https%3A%2F%2FHard%3F@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres";
+const connectionString =
+  "postgresql://postgres.wvsrkammvmlbhqdcmfmg:Https%3A%2F%2FHard%3F@aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres";
 
 async function createFakeData() {
   const client = new Client({ connectionString });
@@ -80,7 +81,7 @@ async function createFakeData() {
     VALUES (
       'c0000000-0000-0000-0000-000000000010',
       '+639998887772',
-      'Macario Sakay (Expired)',
+      'Macario Sakay',
       '1952-03-01',
       74,
       'APPROVED',
