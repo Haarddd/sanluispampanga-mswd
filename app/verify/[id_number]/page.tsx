@@ -94,26 +94,26 @@ export default async function VerifyCitizenPage({ params }: PageProps) {
   }
 
   // Determine status configuration
-  let statusIconBg = "bg-destructive/10";
+  let statusIconBg = "bg-red-400/10";
   let statusIconColor = "text-red-600 dark:text-red-400";
   let StatusIcon = XCircle;
   let statusTitle = "Inactive ID Card";
   let statusDesc = "Official MSWD Digital Credential Verification";
 
   if (digitalId.status === "ACTIVE" && isVerified) {
-    statusIconBg = "bg-emerald-100 dark:bg-emerald-950/20";
+    statusIconBg = "bg-emerald-400/10";
     statusIconColor = "text-emerald-600 dark:text-emerald-400";
     StatusIcon = ShieldCheck;
     statusTitle = "Verified Active Citizen";
     statusDesc = "Official MSWD Digital Credential Verification";
   } else if (digitalId.status === "EXPIRED") {
-    statusIconBg = "bg-yellow-100 dark:bg-yellow-950/20";
+    statusIconBg = "bg-yellow-400/10";
     statusIconColor = "text-yellow-600 dark:text-yellow-400";
     StatusIcon = Clock;
     statusTitle = "Expired ID Card";
     statusDesc = "This digital ID has reached its expiration date.";
   } else if (digitalId.status === "SUSPENDED") {
-    statusIconBg = "bg-red-100 dark:bg-red-950/20";
+    statusIconBg = "bg-red-400/10";
     statusIconColor = "text-red-600 dark:text-red-400";
     StatusIcon = AlertTriangle;
     statusTitle = "Suspended ID Card";
