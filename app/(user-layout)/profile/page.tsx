@@ -15,6 +15,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const cached = clientCache.getProfile();
     if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(cached);
       setLoading(false);
     }
