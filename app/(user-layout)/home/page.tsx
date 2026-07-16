@@ -44,7 +44,7 @@ export default function HomePage() {
   );
 
   const [profile, setProfile] = useState<any>(() => {
-    return clientCache.getProfile();
+    return clientCache.getProfile()?.profile;
   });
   const [announcements, setAnnouncements] = useState<any[]>(() => {
     const cached = clientCache.getAnnouncements();
@@ -57,7 +57,8 @@ export default function HomePage() {
   useEffect(() => {
     async function loadHomeData() {
       // Check if cache exists
-      const cachedProfile = clientCache.getProfile();
+      const cachedProfileData = clientCache.getProfile();
+      const cachedProfile = cachedProfileData?.profile;
       const cachedAnnouncements = clientCache.getAnnouncements();
 
       // If both cache exist, don't fetch
@@ -76,7 +77,7 @@ export default function HomePage() {
 
         if (profileData?.profile) {
           setProfile(profileData.profile);
-          clientCache.setProfile(profileData.profile);
+          clientCache.setProfile(profileData);
         }
 
         if (announcementsData) {

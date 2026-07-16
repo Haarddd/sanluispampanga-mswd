@@ -231,7 +231,7 @@ export function ProfileClient({
                     <div>
                       <span className="text-[10px] font-medium">Full Name</span>
                       <span className="-mt-1 text-sm font-medium block truncate">
-                        {profile.full_name}
+                        {profile?.full_name}
                       </span>
                     </div>
                     <div>

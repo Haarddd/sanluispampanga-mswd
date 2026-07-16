@@ -16,8 +16,12 @@ function getStatusLabel(status: string, language: string) {
 
 export default function BenefitsPage() {
   const { t, language } = useLanguage();
-  const [allBenefits, setAllBenefits] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allBenefits, setAllBenefits] = useState<any[]>(() => {
+    return clientCache.getBenefits() ?? [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !clientCache.getBenefits();
+  });
 
   useEffect(() => {
     async function loadBenefits() {

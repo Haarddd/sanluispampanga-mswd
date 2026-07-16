@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,10 +74,18 @@ export function RequestsSectionsContent() {
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [availableMedicines, setAvailableMedicines] = useState<any[]>([]);
-  const [medicineRequests, setMedicineRequests] = useState<any[]>([]);
-  const [assistanceRequests, setAssistanceRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [availableMedicines, setAvailableMedicines] = useState<any[]>(() => {
+    return clientCache.getMedicines() ?? [];
+  });
+  const [medicineRequests, setMedicineRequests] = useState<any[]>(() => {
+    return clientCache.getUserRequests()?.medicineRequests ?? [];
+  });
+  const [assistanceRequests, setAssistanceRequests] = useState<any[]>(() => {
+    return clientCache.getUserRequests()?.assistanceRequests ?? [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !clientCache.getUserRequests();
+  });
   const [submittingMed, setSubmittingMed] = useState(false);
   const [submittingAssist, setSubmittingAssist] = useState(false);
   const [showRequestsSheet, setShowRequestsSheet] = useState(false);
@@ -657,7 +666,7 @@ export function RequestsSectionsContent() {
                   ? `${medicineRequests.length} total`
                   : `${assistanceRequests.length} total`}
               </span>
-              <a
+              <Link
                 href="/requests/history"
                 className="text-sm font-semibold text-primary hover:underline"
                 onClick={() => {
@@ -666,7 +675,7 @@ export function RequestsSectionsContent() {
                 }}
               >
                 {t.seeAll}
-              </a>
+              </Link>
             </div>
           </div>
         </div>

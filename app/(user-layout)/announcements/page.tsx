@@ -12,8 +12,12 @@ import { createClient } from "@/lib/supabase/client";
 export default function AnnouncementsPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
-  const [allAnnouncements, setAllAnnouncements] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allAnnouncements, setAllAnnouncements] = useState<any[]>(() => {
+    return clientCache.getAnnouncements() ?? [];
+  });
+  const [loading, setLoading] = useState(() => {
+    return !clientCache.getAnnouncements();
+  });
 
   useEffect(() => {
     async function loadAnnouncements() {
