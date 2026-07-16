@@ -42,7 +42,7 @@ export async function updateSession(request: NextRequest) {
   const isVerifyRoute = request.nextUrl.pathname.startsWith("/verify");
   const isApiOrAsset = 
     request.nextUrl.pathname.startsWith("/api") ||
-    request.nextUrl.pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/);
+    request.nextUrl.pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|json)$/);
 
   // 1. Guest redirection
   if (!user && !isAuthRoute && !isSupportRoute && !isVerifyRoute && !isAdminRoute && !isApiOrAsset) {
