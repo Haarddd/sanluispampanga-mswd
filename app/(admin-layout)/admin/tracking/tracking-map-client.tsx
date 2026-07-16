@@ -69,10 +69,30 @@ export default function TrackingMapClient() {
   // Selected Senior on Map (to pan to)
   const [selectedSeniorId, setSelectedSeniorId] = useState<string | null>(null);
 
+  // Active User / Admin Geolocation State
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [focusedLineTargetId, setFocusedLineTargetId] = useState<string | null>(null);
+  const userMarkerRef = useRef<any>(null);
+  const linesGroupRef = useRef<any>(null);
+
   const mapRef = useRef<any>(null);
   const markersGroupRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markerMapRef = useRef<Map<string, any>>(new Map());
+
+  // Set up global focus handler for Leaflet popup click actions
+  useEffect(() => {
+    (window as any).focusRouteLine = (seniorId: string) => {
+      setFocusedLineTargetId(seniorId);
+    };
+    (window as any).clearRouteLineFocus = () => {
+      setFocusedLineTargetId(null);
+    };
+    return () => {
+      delete (window as any).focusRouteLine;
+      delete (window as any).clearRouteLineFocus;
+    };
+  }, []);
 
   // 1. Load Leaflet CDN
   useEffect(() => {
@@ -110,6 +130,30 @@ export default function TrackingMapClient() {
     }
   }, []);
 
+  // 1b. Real-Time Geolocation Tracking (watchPosition)
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator.geolocation) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation([latitude, longitude]);
+      },
+      (error) => {
+        console.error("Error watching user location:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 5000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, []);
+
   // 2. Filter Seniors based on selection
   const filteredSeniors = useMemo(() => {
     return seniors.filter((senior) => {
@@ -141,7 +185,7 @@ export default function TrackingMapClient() {
         matchesRequest = assistanceRequests.some(
           (req) =>
             req.user_id === senior.id &&
-            ["PENDING", "IN_PROGRESS"].includes(req.status),
+            ["PENDING", "APPROVED"].includes(req.status),
         );
       } else if (selectedRequestType === "ANY") {
         const hasMed = medicineRequests.some(
@@ -152,7 +196,7 @@ export default function TrackingMapClient() {
         const hasAst = assistanceRequests.some(
           (req) =>
             req.user_id === senior.id &&
-            ["PENDING", "IN_PROGRESS"].includes(req.status),
+            ["PENDING", "APPROVED"].includes(req.status),
         );
         matchesRequest = hasMed || hasAst;
       }
@@ -189,8 +233,7 @@ export default function TrackingMapClient() {
         {
           attribution: "&copy; OpenStreetMap contributors",
           maxZoom: 19,
-        },
-      );
+      });
 
       const satelliteLayer = L.tileLayer(
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -216,6 +259,7 @@ export default function TrackingMapClient() {
 
       mapRef.current = map;
       markersGroupRef.current = L.layerGroup().addTo(map);
+      linesGroupRef.current = L.layerGroup().addTo(map);
     }
   }, [leafletLoaded]);
 
@@ -234,13 +278,14 @@ export default function TrackingMapClient() {
 
   // 5. Update Map Markers when data or filters change
   useEffect(() => {
-    if (!leafletLoaded || !mapRef.current || !markersGroupRef.current) return;
+    if (!leafletLoaded || !mapRef.current || !markersGroupRef.current || !linesGroupRef.current) return;
     const L = (window as any).L;
     if (!L) return;
 
-    // Clear existing markers
+    // Clear existing markers & lines
     markersGroupRef.current.clearLayers();
     markerMapRef.current.clear();
+    linesGroupRef.current.clearLayers();
 
     // Create marker icons based on status
     const getMarkerIcon = (status: string) => {
@@ -270,6 +315,53 @@ export default function TrackingMapClient() {
       });
     };
 
+    // Draw active user location marker
+    if (userLocation) {
+      const activeUserIcon = L.divIcon({
+        html: `<div style="position: relative;">
+          <!-- Pulsing Background Circle -->
+          <div style="
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            left: -16px;
+            top: -16px;
+            background-color: rgba(59, 130, 246, 0.4);
+            border-radius: 50%;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+          "></div>
+          <!-- Solid Core Circle -->
+          <div style="
+            position: absolute;
+            background-color: #3b82f6;
+            width: 16px;
+            height: 16px;
+            left: -8px;
+            top: -8px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+          "></div>
+        </div>
+        <style>
+          @keyframes pulse-ring {
+            0% { transform: scale(0.5); opacity: 1; }
+            80%, 100% { transform: scale(1.8); opacity: 0; }
+          }
+        </style>`,
+        className: "active-user-marker",
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLatLng(userLocation);
+      } else {
+        userMarkerRef.current = L.marker(userLocation, { icon: activeUserIcon }).addTo(mapRef.current);
+        userMarkerRef.current.bindPopup("<b>Your Active Location</b><br/>Updating in real-time as you move.");
+      }
+    }
+
     filteredSeniors.forEach((senior) => {
       // Use coordinates from address, fallback to San Luis center if missing
       const lat = senior.address.latitude || 15.0253;
@@ -294,6 +386,8 @@ export default function TrackingMapClient() {
               : "bg-red-100 text-red-800"
       }">${statusLabels[senior.verification_status] || senior.verification_status}</span>`;
 
+      const isFocused = focusedLineTargetId === senior.id;
+
       const popupContent = `
         <div style="font-family: inherit; min-width: 240px; padding: 4px;">
           <!-- Header -->
@@ -311,9 +405,15 @@ export default function TrackingMapClient() {
             <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" rel="noopener noreferrer" style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid #d1d5db; color: #374151; background-color: #ffffff; text-decoration: none; display: inline-block; cursor: pointer; transition: background-color 0.2s;">
               Google Maps
             </a>
-            <a href="/admin/seniors?id=${senior.id}" style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; background-color: #3b82f6; color: #ffffff; text-decoration: none; display: inline-block; cursor: pointer; transition: background-color 0.2s;">
-              View Profile
-            </a>
+            ${
+              isFocused
+                ? `<button onclick="window.clearRouteLineFocus(); window.dispatchEvent(new CustomEvent('close-leaflet-popups'));" style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; background-color: #4b5563; color: #ffffff; border: none; display: inline-block; cursor: pointer; transition: background-color 0.2s;">
+                    Clear Focus
+                   </button>`
+                : `<button onclick="window.focusRouteLine('${senior.id}'); window.dispatchEvent(new CustomEvent('close-leaflet-popups'));" style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; background-color: #ef4444; color: #ffffff; border: none; display: inline-block; cursor: pointer; transition: background-color 0.2s;">
+                    Focus Route
+                   </button>`
+            }
           </div>
         </div>
       `;
@@ -322,14 +422,37 @@ export default function TrackingMapClient() {
       marker.addTo(markersGroupRef.current);
 
       markerMapRef.current.set(senior.id, marker);
+
+      // 6. Draw polyline connecting user to matching senior citizen
+      if (userLocation) {
+        if (focusedLineTargetId === null) {
+          // Normal mode: Draw dashed blue lines to all visible seniors
+          L.polyline([userLocation, [jitterLat, jitterLng]], {
+            color: "#3b82f6",
+            weight: 1.5,
+            opacity: 0.5,
+            dashArray: "4, 6",
+          }).addTo(linesGroupRef.current);
+        } else if (focusedLineTargetId === senior.id) {
+          // Emergency focus mode: Draw a solid thick red line to the emergency target
+          L.polyline([userLocation, [jitterLat, jitterLng]], {
+            color: "#ef4444",
+            weight: 4.5,
+            opacity: 0.95,
+            className: "emergency-route-line",
+          }).addTo(linesGroupRef.current);
+        }
+      }
     });
 
     // Auto-fit bounds if we have markers
     if (filteredSeniors.length > 0 && mapRef.current) {
-      const group = L.featureGroup(Array.from(markerMapRef.current.values()));
+      const markers = Array.from(markerMapRef.current.values());
+      const elementsToFit = userMarkerRef.current ? [...markers, userMarkerRef.current] : markers;
+      const group = L.featureGroup(elementsToFit);
       mapRef.current.fitBounds(group.getBounds().pad(0.1));
     }
-  }, [leafletLoaded, filteredSeniors]);
+  }, [leafletLoaded, filteredSeniors, userLocation, focusedLineTargetId]);
 
   // Center/Pan map to a selected senior's marker
   const handleSelectSenior = (senior: SeniorProfile) => {

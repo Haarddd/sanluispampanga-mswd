@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { Toaster } from "@/components/ui/sonner";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,7 +18,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MSWD San Luis, Pampanga",
-  description: "Official website for the MSWD San Luis, Pampanga",
+  description: "Official digital services portal for the Municipal Social Welfare and Development Office of San Luis, Pampanga",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MSWD SLP",
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +52,7 @@ export default function RootLayout({
           <LanguageProvider>
             {children}
             <Toaster position="top-center" richColors />
+            <PWAInstallPrompt />
           </LanguageProvider>
         </ThemeProvider>
       </body>
