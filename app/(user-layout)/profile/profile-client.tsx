@@ -6,6 +6,7 @@ import { ProfileHeader } from "@/components/user/profile-header";
 import { SettingsMenu } from "@/components/user/settings-menu";
 import { SectionHeader } from "@/components/user/section-header";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 
@@ -13,18 +14,20 @@ interface ProfileClientProps {
   profile: any;
   address: any;
   digitalId: any;
+  isLoading?: boolean;
 }
 
 export function ProfileClient({
   profile,
   address,
   digitalId,
+  isLoading,
 }: ProfileClientProps) {
   const { t, language } = useLanguage();
   const [showBack, setShowBack] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
 
-  if (!profile) {
+  if (!profile && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-sm text-muted-foreground">
         {language === "tl"
@@ -52,11 +55,21 @@ export function ProfileClient({
   return (
     <div className="flex flex-col gap-6 px-5 pt-8 pb-4">
       {/* Profile Header */}
-      <ProfileHeader
-        name={profile.full_name || "Senior Citizen"}
-        phone={profile.phone}
-        isVerified={profile?.verification_status?.toLowerCase() === "approved"}
-      />
+      {isLoading && !profile ? (
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="flex flex-col gap-1.5">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+        </div>
+      ) : (
+        <ProfileHeader
+          name={profile?.full_name || "Senior Citizen"}
+          phone={profile?.phone}
+          isVerified={profile?.verification_status?.toLowerCase() === "approved"}
+        />
+      )}
 
       {/* Digital Senior Citizen ID */}
       <section className="flex flex-col gap-3">
@@ -87,7 +100,62 @@ export function ProfileClient({
 
         {/* Outer card wrapper */}
         <div className="w-full flex justify-center">
-          {!showBack ? (
+          {isLoading && !digitalId ? (
+            /* FRONT CARD SKELETON - MATCHES REAL ID CARD DESIGN EXACTLY */
+            <div
+              className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl border border-zinc-200 bg-gradient-to-tr from-[#e0f2fe] via-[#f8fafc] to-[#fef3c7] shadow-md relative overflow-hidden flex flex-col font-sans shrink-0 z-10 isolate text-zinc-900"
+            >
+              {/* Top Header Flag Ribbon decoration */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-white to-red-600 shrink-0 z-10 rounded-t-2xl" />
+
+              {/* Card Title Header */}
+              <div className="px-3 py-1.5 bg-white border-b border-zinc-200 flex items-center gap-2 shrink-0 z-10 rounded-t-[14px]">
+                <img
+                  src="/mswd.png"
+                  alt="MSWD Logo"
+                  className="h-9 w-9 object-contain shrink-0 opacity-40"
+                />
+                <div className="flex-1 text-center leading-tight flex flex-col items-center gap-0.5 justify-center">
+                  <h5 className="text-[10px] leading-none opacity-40">Province of Pampanga</h5>
+                  <h4 className="text-[10px] leading-none opacity-40">Municipality of San Luis</h4>
+                  <p className="text-xs mt-0.5 font-bold leading-none opacity-40">Senior Citizen Digital ID</p>
+                </div>
+                <img
+                  src="/slp.png"
+                  alt="San Luis Pampanga Logo"
+                  className="h-9 w-9 object-contain shrink-0 opacity-40"
+                />
+              </div>
+
+              {/* Card Body */}
+              <div className="p-3 -mt-4 flex flex-col flex-1 min-h-0 z-10 text-left">
+                <div className="flex gap-3 flex-1 items-center">
+                  {/* Left: Photo */}
+                  <div className="shrink-0 flex flex-col items-center">
+                    <div className="text-center mb-1">
+                      <Skeleton className="h-3 w-16 mx-auto" />
+                    </div>
+                    <div className="h-24 w-20 bg-white border border-zinc-200 rounded-lg flex flex-col items-center justify-center relative shadow-xs">
+                      <Skeleton className="h-20 w-16 rounded-md" />
+                    </div>
+                  </div>
+
+                  {/* Right: Details (aligned horizontally with Photo) */}
+                  <div className="flex-1 flex flex-col gap-2 min-w-0 mt-5">
+                    <div>
+                      <span className="text-[10px] font-medium opacity-40">Full Name</span>
+                      <Skeleton className="h-4 w-32 mt-0.5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-medium block opacity-40">Address</span>
+                      <Skeleton className="h-3.5 w-full mt-0.5" />
+                      <Skeleton className="h-3 w-2/3 mt-1" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : !showBack ? (
             /* FRONT CARD - OPTIMIZED FOR CLIENT VIEW */
             <div
               className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl border border-zinc-200 bg-gradient-to-tr from-[#e0f2fe] via-[#f8fafc] to-[#fef3c7] shadow-md relative overflow-hidden flex flex-col font-sans shrink-0 z-10 isolate text-zinc-900"
@@ -268,7 +336,7 @@ export function ProfileClient({
       {/* Account Settings */}
       <section className="flex flex-col gap-3">
         <SectionHeader title={t.accountSettings} />
-        <SettingsMenu initialSmsNotifications={profile.sms_notifications} />
+        <SettingsMenu initialSmsNotifications={profile?.sms_notifications ?? false} />
       </section>
     </div>
   );
