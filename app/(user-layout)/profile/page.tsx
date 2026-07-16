@@ -10,22 +10,28 @@ export default function ProfilePage() {
     clientCache.getProfile() ?? null
   );
   const [loading, setLoading] = useState(!clientCache.getProfile());
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     const cached = clientCache.getProfile();
     if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(cached);
       setLoading(false);
     }
 
-    fetchUserProfile().then((fresh) => {
-      if (fresh) {
-        clientCache.setProfile(fresh);
-        setData(fresh);
-      }
-      setLoading(false);
-    });
+    fetchUserProfile()
+      .then((fresh) => {
+        if (fresh) {
+          clientCache.setProfile(fresh);
+          setData(fresh);
+        }
+        setLoading(false);
+        setHasFetched(true);
+      })
+      .catch(() => {
+        setLoading(false);
+        setHasFetched(true);
+      });
   }, []);
 
   return (
@@ -34,6 +40,7 @@ export default function ProfilePage() {
       address={data?.address}
       digitalId={data?.digitalId}
       isLoading={loading}
+      hasFetched={hasFetched}
     />
   );
 }

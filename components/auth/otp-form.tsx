@@ -10,7 +10,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Check } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
@@ -32,6 +32,11 @@ export function OTPForm() {
   const [resendTimer, setResendTimer] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
+
+  const [phoneStatus, setPhoneStatus] = useState<
+    "idle" | "checking" | "registered" | "not-found"
+  >("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Formatted display: e.g. "912 345 6789"
   const displayPhone = phone
@@ -55,6 +60,7 @@ export function OTPForm() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
 
@@ -63,10 +69,42 @@ export function OTPForm() {
     if (val.startsWith("0")) val = val.substring(1);
     val = val.substring(0, 10);
     setPhone(val);
+    setError(null);
+
+    // Reset status if incomplete
+    if (val.length < 10) {
+      setPhoneStatus("idle");
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      return;
+    }
+
+    // Debounce: check DB after user stops typing for 600ms
+    setPhoneStatus("checking");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const formatted = `+63${val.replace(/^0+/, "")}`;
+      const res = await checkUserStatus(formatted);
+      if (res.error) {
+        setPhoneStatus("idle");
+      } else {
+        setPhoneStatus(res.exists ? "registered" : "not-found");
+      }
+    }, 600);
   };
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Hard client-side guard — PH mobile numbers are exactly 10 digits
+    if (phone.length !== 10) {
+      setError(
+        language === "tl"
+          ? "Pakilagay ang kumpletong 10-digit na numero."
+          : "Please enter a complete 10-digit mobile number.",
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -192,25 +230,57 @@ export function OTPForm() {
         )}
 
         <form onSubmit={handlePhoneSubmit} className="flex flex-col gap-4">
-          <div className="relative flex items-center">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-base md:text-base">
-              +63
-            </span>
-            <Input
-              id="phone"
-              type="tel"
-              value={displayPhone}
-              onChange={handlePhoneChange}
-              placeholder={t.phonePlaceholder}
-              required
-              inputMode="numeric"
-              className="pl-12 h-12 text-base md:text-base rounded-md"
-            />
+          <div className="flex flex-col gap-1.5">
+            <div className="relative flex items-center">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-base md:text-base">
+                +63
+              </span>
+              <Input
+                id="phone"
+                type="tel"
+                value={displayPhone}
+                onChange={handlePhoneChange}
+                placeholder={t.phonePlaceholder}
+                required
+                inputMode="numeric"
+                className={`pl-12 h-12 text-base md:text-base rounded-md ${
+                  phoneStatus === "not-found"
+                    ? "border-amber-400 focus-visible:ring-amber-400"
+                    : phoneStatus === "registered"
+                      ? "border-green-500 focus-visible:ring-green-500"
+                      : ""
+                }`}
+              />
+            </div>
+
+            {/* Inline real-time status hint */}
+            {phoneStatus === "checking" && (
+              <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {language === "tl" ? "Sinusuri" : "Checking"}
+              </p>
+            )}
+            {phoneStatus === "registered" && (
+              <p className="text-sm flex gap-1 text-green-600 font-medium">
+                {language === "tl"
+                  ? "Rehistradong numero, mag-login gamit ang PIN."
+                  : "Registered number, you'll log in with your PIN."}
+              </p>
+            )}
+            {phoneStatus === "not-found" && (
+              <p className="text-sm text-amber-600 font-medium">
+                {language === "tl"
+                  ? "Bagong numero, magpapadala kami ng OTP para sa pagpaparehistro."
+                  : "New number, we'll send an OTP to register your account."}
+              </p>
+            )}
           </div>
 
           <Button
             type="submit"
-            disabled={loading || phone.length < 9}
+            disabled={
+              loading || phone.length !== 10 || phoneStatus === "checking"
+            }
             className="w-full h-12 text-base rounded-md font-medium"
           >
             {loading ? (

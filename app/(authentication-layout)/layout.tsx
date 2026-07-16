@@ -2,7 +2,7 @@
 
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Globe } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -11,7 +11,7 @@ export default function AuthenticationLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
 
   return (
     <div className="min-h-dvh bg-background flex flex-col items-center">
@@ -21,12 +21,21 @@ export default function AuthenticationLayout({
           variant="outline"
           size="default"
           asChild
-          className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2 rounded-md"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <Link href="/support">
             <HelpCircle className="w-4 h-4" />
             <span>{t.help}</span>
           </Link>
+        </Button>
+        <Button
+          variant="outline"
+          size="default"
+          onClick={() => setLanguage(language === "en" ? "tl" : "en")}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <Globe className="w-4 h-4" />
+          <span className="text-sm">{language === "en" ? "En" : "Tl"}</span>
         </Button>
         <ThemeToggle />
       </header>

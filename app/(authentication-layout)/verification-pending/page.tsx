@@ -131,7 +131,6 @@ export default function VerificationPendingPage() {
       await signOut();
     } catch (err) {
       console.error(err);
-      setLoggingOut(false);
     }
   };
 

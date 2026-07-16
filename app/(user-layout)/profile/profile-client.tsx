@@ -15,6 +15,7 @@ interface ProfileClientProps {
   address: any;
   digitalId: any;
   isLoading?: boolean;
+  hasFetched?: boolean;
 }
 
 export function ProfileClient({
@@ -22,12 +23,14 @@ export function ProfileClient({
   address,
   digitalId,
   isLoading,
+  hasFetched,
 }: ProfileClientProps) {
   const { t, language } = useLanguage();
   const [showBack, setShowBack] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
 
-  if (!profile && !isLoading) {
+  // Only show "not found" after the fetch has resolved with no data
+  if (!profile && !isLoading && hasFetched) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-sm text-muted-foreground">
         {language === "tl"

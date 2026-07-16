@@ -12,8 +12,11 @@ import { clientCache } from "@/lib/client-cache";
 export default function RequestsHistoryPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
-  const [historyList, setHistoryList] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [historyList, setHistoryList] = useState<any[]>(() => {
+    const cached = clientCache.getUserRequests();
+    return cached ? mergeRequests(cached) : [];
+  });
+  const [loading, setLoading] = useState(!clientCache.getUserRequests());
 
   function getStatusLabel(status: string, lang: string) {
     if (status === "pending") return lang === "tl" ? "Pinoproseso" : "Pending";
