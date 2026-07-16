@@ -138,7 +138,7 @@ export function ProfileClient({
               </div>
 
               {/* Card Body */}
-              <div className="p-3 flex flex-col flex-1 min-h-0 z-10 text-left">
+              <div className="p-3 -mt-4 flex flex-col flex-1 min-h-0 z-10 text-left">
                 <div className="flex gap-3 flex-1 items-center">
                   {/* Left: Photo */}
                   <div className="shrink-0 flex flex-col items-center">

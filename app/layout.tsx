@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { Toaster } from "@/components/ui/sonner";
 import { NProgressProvider } from "@/components/ui/nprogress-provider";
+import PwaInstallPrompt from "@/components/pwa-install-prompt";
 import Script from "next/script";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
           <LanguageProvider>
             {children}
             <Toaster position="top-center" richColors />
+            <PwaInstallPrompt />
           </LanguageProvider>
         </ThemeProvider>
       </body>
