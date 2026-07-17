@@ -1,3 +1,7 @@
+self.addEventListener('install', function (event) {
+  self.skipWaiting();
+});
+
 self.addEventListener('push', function (event) {
   const data = event.data?.json() ?? {}
   const title = data.title || 'MSWD San Luis Pampanga'

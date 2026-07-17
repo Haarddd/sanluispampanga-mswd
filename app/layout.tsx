@@ -41,9 +41,20 @@ export default function RootLayout({
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
+              if ('serviceWorker' in navigator) { 
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js');
+                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                    // Check for updates on load
+                    reg.update();
+                  });
+                });
+
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', function() {
+                  if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                  }
                 });
               }
             `,

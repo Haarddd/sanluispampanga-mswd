@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X, Share } from "lucide-react";
 import { toast } from "sonner";
+import { usePathname } from "next/navigation";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,12 +12,18 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function PwaInstallPrompt() {
+  const pathname = usePathname();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
   const [showIosPrompt, setShowIosPrompt] = useState(false);
 
   useEffect(() => {
+    // Disable completely on admin portal routes
+    if (pathname?.startsWith("/admin")) {
+      return;
+    }
+
     // 1. Check if already running in standalone mode (installed PWA)
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -28,8 +35,8 @@ export default function PwaInstallPrompt() {
 
     if (isStandalone) return;
 
-    // Check if dismissed in this session
-    const isDismissed = sessionStorage.getItem("pwa-prompt-dismissed") === "true";
+    // Check if dismissed permanently
+    const isDismissed = localStorage.getItem("pwa-prompt-dismissed") === "true";
     if (isDismissed) return;
 
     // 2. Handle Android/Chrome beforeinstallprompt event
@@ -52,7 +59,7 @@ export default function PwaInstallPrompt() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
     };
-  }, []);
+  }, [pathname]);
 
   const handleAndroidInstall = async () => {
     if (!installPrompt) return;
@@ -65,21 +72,23 @@ export default function PwaInstallPrompt() {
         "App successfully installed! You can now access it from your home screen.",
       );
     } else {
-      // If they dismissed the browser prompt, trigger session-wide dismiss
-      sessionStorage.setItem("pwa-prompt-dismissed", "true");
+      // If they dismissed the browser prompt, trigger permanent dismiss
+      localStorage.setItem("pwa-prompt-dismissed", "true");
     }
     setInstallPrompt(null);
   };
 
   const handleDismissAndroid = () => {
     setShowAndroidPrompt(false);
-    sessionStorage.setItem("pwa-prompt-dismissed", "true");
+    localStorage.setItem("pwa-prompt-dismissed", "true");
   };
 
   const handleDismissIos = () => {
     setShowIosPrompt(false);
-    sessionStorage.setItem("pwa-prompt-dismissed", "true");
+    localStorage.setItem("pwa-prompt-dismissed", "true");
   };
+
+  if (pathname?.startsWith("/admin")) return null;
 
   if (isPwaInstalled) return null;
 

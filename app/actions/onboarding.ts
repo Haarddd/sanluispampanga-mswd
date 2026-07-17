@@ -20,6 +20,10 @@ export async function submitOnboarding(formData: FormData) {
   const barangay = formData.get("barangay") as string;
   const municipality = formData.get("municipality") as string;
   const province = formData.get("province") as string;
+  const sex = formData.get("sex") as string;
+  const civilStatus = formData.get("civilStatus") as string;
+  const emergencyContactName = formData.get("emergencyContactName") as string;
+  const emergencyContactNumber = formData.get("emergencyContactNumber") as string;
   const pin = formData.get("pin") as string;
   const latitudeRaw = formData.get("latitude") as string | null;
   const longitudeRaw = formData.get("longitude") as string | null;
@@ -87,6 +91,10 @@ export async function submitOnboarding(formData: FormData) {
       age: age,
       verification_status: "PENDING_ADMIN_REVIEW",
       login_pin: pin,
+      sex: sex || null,
+      civil_status: civilStatus || null,
+      emergency_contact_name: emergencyContactName || null,
+      emergency_contact_number: emergencyContactNumber || null,
     })
     .eq("id", user.id);
 
