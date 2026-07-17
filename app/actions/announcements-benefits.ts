@@ -14,7 +14,7 @@ export async function fetchAnnouncements() {
     console.error("Error fetching announcements:", error);
     return [];
   }
-  return data || [];
+  return JSON.parse(JSON.stringify(data || []));
 }
 
 export async function fetchBenefits() {

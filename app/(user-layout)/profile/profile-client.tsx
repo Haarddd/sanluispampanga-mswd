@@ -70,7 +70,9 @@ export function ProfileClient({
         <ProfileHeader
           name={profile?.full_name || "Senior Citizen"}
           phone={profile?.phone}
-          isVerified={profile?.verification_status?.toLowerCase() === "approved"}
+          isVerified={
+            profile?.verification_status?.toLowerCase() === "approved"
+          }
         />
       )}
 
@@ -105,9 +107,7 @@ export function ProfileClient({
         <div className="w-full flex justify-center">
           {isLoading && !digitalId ? (
             /* FRONT CARD SKELETON - MATCHES REAL ID CARD DESIGN EXACTLY */
-            <div
-              className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl border border-zinc-200 bg-gradient-to-tr from-[#e0f2fe] via-[#f8fafc] to-[#fef3c7] shadow-md relative overflow-hidden flex flex-col font-sans shrink-0 z-10 isolate text-zinc-900"
-            >
+            <div className="w-full max-w-[380px] aspect-[1.586/1] rounded-2xl border border-zinc-200 bg-gradient-to-tr from-[#e0f2fe] via-[#f8fafc] to-[#fef3c7] shadow-md relative overflow-hidden flex flex-col font-sans shrink-0 z-10 isolate text-zinc-900">
               {/* Top Header Flag Ribbon decoration */}
               <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-white to-red-600 shrink-0 z-10 rounded-t-2xl" />
 
@@ -119,9 +119,15 @@ export function ProfileClient({
                   className="h-9 w-9 object-contain shrink-0 opacity-40"
                 />
                 <div className="flex-1 text-center leading-tight flex flex-col items-center gap-0.5 justify-center">
-                  <h5 className="text-[10px] leading-none opacity-40">Province of Pampanga</h5>
-                  <h4 className="text-[10px] leading-none opacity-40">Municipality of San Luis</h4>
-                  <p className="text-xs mt-0.5 font-bold leading-none opacity-40">Senior Citizen Digital ID</p>
+                  <h5 className="text-[10px] leading-none opacity-40">
+                    Province of Pampanga
+                  </h5>
+                  <h4 className="text-[10px] leading-none opacity-40">
+                    Municipality of San Luis
+                  </h4>
+                  <p className="text-xs mt-0.5 font-bold leading-none opacity-40">
+                    Senior Citizen Digital ID
+                  </p>
                 </div>
                 <img
                   src="/slp.png"
@@ -146,11 +152,15 @@ export function ProfileClient({
                   {/* Right: Details (aligned horizontally with Photo) */}
                   <div className="flex-1 flex flex-col gap-2 min-w-0 mt-5">
                     <div>
-                      <span className="text-[10px] font-medium opacity-40">Full Name</span>
+                      <span className="text-[10px] font-medium opacity-40">
+                        Full Name
+                      </span>
                       <Skeleton className="h-4 w-32 mt-0.5" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-medium block opacity-40">Address</span>
+                      <span className="text-[10px] font-medium block opacity-40">
+                        Address
+                      </span>
                       <Skeleton className="h-3.5 w-full mt-0.5" />
                       <Skeleton className="h-3 w-2/3 mt-1" />
                     </div>
@@ -276,8 +286,9 @@ export function ProfileClient({
                 <div className="flex flex-col items-center gap-1 shrink-0">
                   <div className="h-32 w-32 bg-white p-2 border border-zinc-200 rounded-xl shadow-sm flex items-center justify-center select-none overflow-hidden">
                     {qrCodeText ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mswdsanluispampanga.vercel.app/verify/${digitalId?.id_number}`}
+                        src={`https://quickchart.io/qr?text=https://mswdsanluispampanga.vercel.app/verify/${digitalId?.id_number}&size=150&ecLevel=H`}
                         alt="Citizen Verification QR"
                         className="h-full w-full object-contain"
                       />
@@ -293,13 +304,13 @@ export function ProfileClient({
                   </span>
                 </div>
 
-                {/* Right: Dates stacked vertically next to QR code */}
-                <div className="flex-1 flex flex-col gap-3 pt-1 z-10">
+                {/* Right: Dates and Emergency Contact stacked vertically next to QR code */}
+                <div className="flex-1 flex flex-col gap-1.5 pt-1 z-10 text-left min-w-0">
                   <div>
                     <span className="text-[10px] block font-medium">
                       Date of Issue
                     </span>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium block">
                       {digitalId?.issue_date
                         ? new Date(digitalId.issue_date).toLocaleDateString(
                             "en-US",
@@ -316,7 +327,7 @@ export function ProfileClient({
                     <span className="text-[10px] block font-medium">
                       Date of Expiry
                     </span>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-medium block">
                       {digitalId?.expiry_date
                         ? new Date(digitalId.expiry_date).toLocaleDateString(
                             "en-US",
@@ -329,6 +340,23 @@ export function ProfileClient({
                         : "No Expiry"}
                     </span>
                   </div>
+                  <div>
+                    <span className="text-[10px] block font-medium">
+                      Emergency Contact
+                    </span>
+                    {profile ? (
+                      <div className="leading-tight">
+                        <p className="text-sm font-medium truncate">
+                          {profile.emergency_contact_name || "N/A"}
+                        </p>
+                        <p className="text-sm font-medium">
+                          {profile.emergency_contact_number || "N/A"}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-medium block">N/A</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -339,7 +367,9 @@ export function ProfileClient({
       {/* Account Settings */}
       <section className="flex flex-col gap-3">
         <SectionHeader title={t.accountSettings} />
-        <SettingsMenu initialSmsNotifications={profile?.sms_notifications ?? false} />
+        <SettingsMenu
+          initialSmsNotifications={profile?.sms_notifications ?? false}
+        />
       </section>
     </div>
   );

@@ -62,12 +62,14 @@ export async function fetchUserProfile() {
     console.error("Error fetching id document:", docError);
   }
 
-  return {
-    profile,
-    address,
-    digitalId,
-    idDocument,
-  };
+  return JSON.parse(
+    JSON.stringify({
+      profile: profile || null,
+      address: address || null,
+      digitalId: digitalId || null,
+      idDocument: idDocument || null,
+    })
+  );
 }
 
 export async function updateProfileLanguage(language: string) {

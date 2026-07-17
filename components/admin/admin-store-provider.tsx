@@ -47,6 +47,10 @@ export interface SeniorProfile {
   created_at: string;
   id_document: IdDocument;
   id_document_back?: IdDocument;
+  sex?: string;
+  civil_status?: string;
+  emergency_contact_name?: string;
+  emergency_contact_number?: string;
   address: Address;
   internal_notes: string;
   resubmit_fields?: string[];
@@ -338,6 +342,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                 latitude: addr.latitude || 0,
                 longitude: addr.longitude || 0,
               },
+              sex: p.sex || "",
+              civil_status: p.civil_status || "",
+              emergency_contact_name: p.emergency_contact_name || "",
+              emergency_contact_number: p.emergency_contact_number || "",
               medicine_requests_count: userMedReqs.length,
               assistance_requests_count: userAstReqs.length,
               internal_notes: p.internal_notes || "",

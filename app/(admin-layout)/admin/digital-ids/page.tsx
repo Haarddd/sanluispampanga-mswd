@@ -410,7 +410,7 @@ export default function DigitalIdsPage() {
                       <div className="flex flex-col items-center gap-1.5 shrink-0">
                         <div className="h-36 w-36 bg-white p-2.5 border border-zinc-200 rounded-xl shadow-sm flex items-center justify-center select-none overflow-hidden">
                           <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://mswdsanluispampanga.vercel.app/verify/${viewingId.id_number}`}
+                            src={`https://quickchart.io/qr?text=https://mswdsanluispampanga.vercel.app/verify/${viewingId.id_number}&size=150&ecLevel=H`}
                             alt="Citizen Verification QR"
                             className="h-full w-full object-contain"
                           />
@@ -420,8 +420,8 @@ export default function DigitalIdsPage() {
                         </span>
                       </div>
 
-                      {/* Right: Dates stacked vertically next to QR code */}
-                      <div className="flex-1 flex flex-col gap-3 pt-2 z-10 text-left justify-center">
+                      {/* Right: Dates and Emergency Contact stacked vertically next to QR code */}
+                      <div className="flex-1 flex flex-col z-10 text-left justify-center min-w-0">
                         <div>
                           <span className="text-xs block font-medium">
                             Date of Issue
@@ -437,6 +437,25 @@ export default function DigitalIdsPage() {
                           <span className="text-base font-medium ">
                             {viewingId.expiry_date}
                           </span>
+                        </div>
+                        <div className="">
+                          <span className="text-xs font-medium">
+                            Emergency Contact
+                          </span>
+                          {selectedSeniorForId ? (
+                            <div className="leading-tight">
+                              <p className="text-base font-semibold ">
+                                {selectedSeniorForId.emergency_contact_name ||
+                                  "N/A"}
+                              </p>
+                              <p className="text-sm font-medium ">
+                                {selectedSeniorForId.emergency_contact_number ||
+                                  "N/A"}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-base font-medium">N/A</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -505,7 +524,9 @@ export default function DigitalIdsPage() {
             </DialogHeader>
             <div className="px-6 py-4 space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Are you sure you want to suspend this digital ID? The senior citizen's status will be marked as inactive and they will no longer be verified until renewed.
+                Are you sure you want to suspend this digital ID? The senior
+                citizen's status will be marked as inactive and they will no
+                longer be verified until renewed.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -547,7 +568,9 @@ export default function DigitalIdsPage() {
             </DialogHeader>
             <div className="px-6 py-4 space-y-4">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Are you sure you want to renew this digital ID? This will set the ID status back to ACTIVE and extend its expiration date by 5 years.
+                Are you sure you want to renew this digital ID? This will set
+                the ID status back to ACTIVE and extend its expiration date by 5
+                years.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button

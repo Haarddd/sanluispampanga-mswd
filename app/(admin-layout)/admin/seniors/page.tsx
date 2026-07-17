@@ -25,6 +25,12 @@ import {
   CheckSquare,
   Square,
   Clock,
+  Users,
+  Heart,
+  Contact,
+  PhoneCall,
+  VenusAndMars,
+  Circle,
 } from "lucide-react";
 import {
   Dialog,
@@ -473,20 +479,61 @@ function SeniorsDirectoryPageContent() {
 
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
+                        <VenusAndMars className="h-4 w-4" />
                       </div>
                       <div>
                         <span className="text-xs text-muted-foreground block">
-                          Full Address
+                          Sex
                         </span>
                         <span className="font-medium text-foreground">
-                          Brgy. {selectedSenior.address.barangay}, San Luis,
-                          Pampanga
+                          {selectedSenior.sex || "N/A"}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 md:col-span-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <Circle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">
+                          Civil Status
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {selectedSenior.civil_status || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <Contact className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">
+                          Emergency Contact Name
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {selectedSenior.emergency_contact_name || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <PhoneCall className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">
+                          Emergency Contact Number
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {selectedSenior.emergency_contact_number || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                         <Navigation className="h-4 w-4" />
                       </div>
@@ -494,9 +541,32 @@ function SeniorsDirectoryPageContent() {
                         <span className="text-xs text-muted-foreground block">
                           GPS Coordinates
                         </span>
-                        <span className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          {selectedSenior.address.latitude},{" "}
-                          {selectedSenior.address.longitude}
+                        <span className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5 font-medium">
+                          {selectedSenior.address.latitude !== undefined
+                            ? selectedSenior.address.latitude
+                            : "N/A"}
+                          ,{" "}
+                          {selectedSenior.address.longitude !== undefined
+                            ? selectedSenior.address.longitude
+                            : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 md:col-span-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground block">
+                          Full Address
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {selectedSenior.address.street
+                            ? `${selectedSenior.address.street}, `
+                            : ""}
+                          Brgy. {selectedSenior.address.barangay || "N/A"}, San
+                          Luis, Pampanga
                         </span>
                       </div>
                     </div>

@@ -89,10 +89,12 @@ export async function fetchUserRequests() {
     pharmacistNotes: "",
   }));
 
-  return {
-    medicineRequests: formattedMedicines,
-    assistanceRequests: formattedAssistance,
-  };
+  return JSON.parse(
+    JSON.stringify({
+      medicineRequests: formattedMedicines,
+      assistanceRequests: formattedAssistance,
+    })
+  );
 }
 
 export async function submitMedicineRequest(formData: FormData) {
